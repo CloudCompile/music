@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudTunes Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #121212;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #535353;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #727272;
+        }
+        
+        .progress-bar::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .progress-bar:hover::-webkit-slider-thumb {
+            opacity: 1;
+        }
+        
+        .progress-bar::-webkit-slider-runnable-track {
+            height: 4px;
+            border-radius: 2px;
+        }
+        
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .volume-slider:hover::-webkit-slider-thumb,
+        .volume-container:hover .volume-slider::-webkit-slider-thumb {
+            opacity: 1;
+        }
+        
+        .album-art {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .album-art:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+        
+        .queue-item {
+            transition: all 0.2s ease;
+        }
+        
+        .queue-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .queue-item.active {
+            background: rgba(29, 185, 84, 0.3);
+        }
+        
+        .control-btn {
+            transition: all 0.15s ease;
+        }
+        
+        .control-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .play-btn {
+            transition: all 0.15s ease;
+        }
+        
+        .play-btn:hover {
+            transform: scale(1.08);
+            background: #1ed760 !important;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .rotating {
+            animation: rotate 20s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .rotating.paused {
+            animation-play-state: paused;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-b from-zinc-900 to-black min-h-screen text-white">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar / Queue -->
+        <aside class="w-80 bg-black p-4 flex flex-col border-r border-zinc-800">
+            <div class="flex items-center gap-2 mb-6">
+                <i class="fas fa-cloud text-3xl text-green-500"></i>
+                <span class="text-xl font-bold">CloudTunes</span>
+            </div>
+            
+            <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Queue</h2>
+            
+            <!-- Upload Buttons -->
+            <div class="mb-4 space-y-3">
+                <input type="file" id="fileInput" accept="audio/*" multiple class="hidden">
+                <button id="uploadBtn" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2">
+                    <i class="fas fa-upload"></i>
+                    <span>Upload Music</span>
+                </button>
+                <button id="cloudBtn" class="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2">
+                    <i class="fab fa-github"></i>
+                    <span>Load Cloud Library</span>
+                </button>
+            </div>
+            
+            <div id="queue" class="flex-1 overflow-y-auto space-y-1">
+                <!-- Queue items will be inserted here -->
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-zinc-800 space-y-2">
+                <button id="clearQueue" class="text-sm text-zinc-400 hover:text-white transition block w-full text-left">
+                    <i class="fas fa-trash-alt mr-2"></i>Clear Queue
+                </button>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Now Playing Section -->
+            <div class="flex-1 flex items-center justify-center p-8">
+                <div class="text-center fade-in" id="nowPlaying">
+                    <!-- Album Art -->
+                    <div class="relative inline-block mb-8">
+                        <div id="albumArtContainer" class="w-72 h-72 md:w-96 md:h-96 rounded-lg shadow-2xl overflow-hidden album-art">
+                            <img id="albumArt" src="" alt="Album Art" class="w-full h-full object-cover">
+                        </div>
+                        <div id="vinylOverlay" class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity duration-300">
+                            <i class="fas fa-music text-6xl text-white/50"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- Track Info -->
+                    <div class="mb-4">
+                        <h1 id="trackTitle" class="text-2xl md:text-3xl font-bold mb-2 transition-all duration-300">Select a Track</h1>
+                        <p id="trackArtist" class="text-zinc-400 text-lg">Browse the queue</p>
+                    </div>
+                    
+                    <!-- Like Button -->
+                    <button id="likeBtn" class="text-zinc-400 hover:text-green-500 transition control-btn mb-4">
+                        <i class="far fa-heart text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Player Controls -->
+            <div class="bg-gradient-to-t from-black via-zinc-900/95 to-transparent p-6">
+                <!-- Progress Bar -->
+                <div class="max-w-3xl mx-auto mb-4">
+                    <div class="flex items-center gap-3">
+                        <span id="currentTime" class="text-xs text-zinc-400 w-10 text-right">0:00</span>
+                        <div class="flex-1 relative group">
+                            <div class="absolute inset-0 h-1 top-1/2 -translate-y-1/2 bg-zinc-600 rounded-full"></div>
+                            <div id="progressFill" class="absolute h-1 top-1/2 -translate-y-1/2 bg-white group-hover:bg-green-500 rounded-full transition-colors" style="width: 0%"></div>
+                            <input type="range" id="progressBar" min="0" max="100" value="0" 
+                                class="progress-bar w-full h-1 bg-transparent appearance-none cursor-pointer relative z-10">
+                        </div>
+                        <span id="totalTime" class="text-xs text-zinc-400 w-10">0:00</span>
+                    </div>
+                </div>
+                
+                <!-- Control Buttons -->
+                <div class="flex items-center justify-center gap-6">
+                    <!-- Shuffle -->
+                    <button id="shuffleBtn" class="text-zinc-400 hover:text-white transition control-btn" title="Shuffle">
+                        <i class="fas fa-random text-lg"></i>
+                    </button>
+                    
+                    <!-- Previous -->
+                    <button id="prevBtn" class="text-white hover:text-green-500 transition control-btn" title="Previous">
+                        <i class="fas fa-step-backward text-xl"></i>
+                    </button>
+                    
+                    <!-- Play/Pause -->
+                    <button id="playBtn" class="play-btn w-14 h-14 bg-white text-black rounded-full flex items-center justify-center" title="Play">
+                        <i class="fas fa-play text-xl ml-1"></i>
+                    </button>
+                    
+                    <!-- Next -->
+                    <button id="nextBtn" class="text-white hover:text-green-500 transition control-btn" title="Next">
+                        <i class="fas fa-step-forward text-xl"></i>
+                    </button>
+                    
+                    <!-- Repeat -->
+                    <button id="repeatBtn" class="text-zinc-400 hover:text-white transition control-btn" title="Repeat">
+                        <i class="fas fa-redo text-lg"></i>
+                    </button>
+                </div>
+                
+                <!-- Volume Control -->
+                <div class="flex items-center justify-end gap-2 mt-4 volume-container">
+                    <button id="volumeBtn" class="text-zinc-400 hover:text-white transition">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                    <div class="w-24 relative group">
+                        <div class="absolute inset-0 h-1 top-1/2 -translate-y-1/2 bg-zinc-600 rounded-full"></div>
+                        <div id="volumeFill" class="absolute h-1 top-1/2 -translate-y-1/2 bg-white group-hover:bg-green-500 rounded-full transition-colors" style="width: 70%"></div>
+                        <input type="range" id="volumeSlider" min="0" max="100" value="70" 
+                            class="volume-slider w-full h-1 bg-transparent appearance-none cursor-pointer relative z-10">
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Hidden Audio Element -->
+    <audio id="audioPlayer"></audio>
+
+    <script>
+        // Sample song data with gradient backgrounds as album art
+        const songs = [
+            {
+                id: 1,
+                title: "Blinding Lights",
+                artist: "The Weeknd",
+                duration: 203,
+                color: "#e63946",
+                gradient: "linear-gradient(135deg, #e63946 0%, #1d3557 100%)"
+            },
+            {
+                id: 2,
+                title: "Levitating",
+                artist: "Dua Lipa",
+                duration: 183,
+                color: "#9d4edd",
+                gradient: "linear-gradient(135deg, #9d4edd 0%, #c77dff 100%)"
+            },
+            {
+                id: 3,
+                title: "Stay",
+                artist: "Kid LAROI & Justin Bieber",
+                duration: 142,
+                color: "#00b4d8",
+                gradient: "linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)"
+            },
+            {
+                id: 4,
+                title: "Heat Waves",
+                artist: "Glass Animals",
+                duration: 239,
+                color: "#fb8500",
+                gradient: "linear-gradient(135deg, #fb8500 0%, #ffb703 100%)"
+            },
+            {
+                id: 5,
+                title: "Bad Habits",
+                artist: "Ed Sheeran",
+                duration: 231,
+                color: "#8338ec",
+                gradient: "linear-gradient(135deg, #8338ec 0%, #3a86ff 100%)"
+            },
+            {
+                id: 6,
+                title: "Shivers",
+                artist: "Ed Sheeran",
+                duration: 207,
+                color: "#06d6a0",
+                gradient: "linear-gradient(135deg, #06d6a0 0%, #118ab2 100%)"
+            },
+            {
+                id: 7,
+                title: "Easy On Me",
+                artist: "Adele",
+                duration: 224,
+                color: "#495057",
+                gradient: "linear-gradient(135deg, #495057 0%, #212529 100%)"
+            },
+            {
+                id: 8,
+                title: "Industry Baby",
+                artist: "Lil Nas X & Jack Harlow",
+                duration: 212,
+                color: "#ff006e",
+                gradient: "linear-gradient(135deg, #ff006e 0%, #fb5607 100%)"
+            }
+        ];
+
+        // Player state
+        let state = {
+            queue: [...songs],
+            currentIndex: 0,
+            isPlaying: false,
+            isShuffle: false,
+            repeatMode: 0, // 0: off, 1: all, 2: one
+            volume: 70,
+            currentTime: 0,
+            liked: new Set()
+        };
+
+        // DOM Elements
+        const elements = {
+            queue: document.getElementById('queue'),
+            albumArt: document.getElementById('albumArt'),
+            albumArtContainer: document.getElementById('albumArtContainer'),
+            trackTitle: document.getElementById('trackTitle'),
+            trackArtist: document.getElementById('trackArtist'),
+            playBtn: document.getElementById('playBtn'),
+            prevBtn: document.getElementById('prevBtn'),
+            nextBtn: document.getElementById('nextBtn'),
+            shuffleBtn: document.getElementById('shuffleBtn'),
+            repeatBtn: document.getElementById('repeatBtn'),
+            progressBar: document.getElementById('progressBar'),
+            progressFill: document.getElementById('progressFill'),
+            currentTime: document.getElementById('currentTime'),
+            totalTime: document.getElementById('totalTime'),
+            volumeSlider: document.getElementById('volumeSlider'),
+            volumeFill: document.getElementById('volumeFill'),
+            volumeBtn: document.getElementById('volumeBtn'),
+            likeBtn: document.getElementById('likeBtn'),
+            nowPlaying: document.getElementById('nowPlaying'),
+            clearQueue: document.getElementById('clearQueue'),
+            uploadBtn: document.getElementById('uploadBtn'),
+            fileInput: document.getElementById('fileInput'),
+            audioPlayer: document.getElementById('audioPlayer')
+        };
+
+        let nextSongId = songs.length + 1;
+
+        // Helper functions
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function createAlbumArt(gradient, title) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 400;
+            const ctx = canvas.getContext('2d');
+            
+            // Parse gradient
+            const gradientMatch = gradient.match(/linear-gradient\((\d+)deg,\s*([#\w]+)\s*\d+%,\s*([#\w]+)\s*\d+%\)/);
+            if (gradientMatch) {
+                const angle = parseInt(gradientMatch[1]);
+                const color1 = gradientMatch[2];
+                const color2 = gradientMatch[3];
+                
+                const grd = ctx.createLinearGradient(0, 0, 400, 400);
+                grd.addColorStop(0, color1);
+                grd.addColorStop(1, color2);
+                ctx.fillStyle = grd;
+                ctx.fillRect(0, 0, 400, 400);
+                
+                // Add some visual elements
+                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                ctx.beginPath();
+                ctx.arc(300, 100, 150, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                ctx.beginPath();
+                ctx.arc(100, 300, 120, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Add music note icon
+                ctx.font = 'bold 80px FontAwesome';
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('♪', 200, 200);
+            }
+            
+            return canvas.toDataURL();
+        }
+
+        function renderQueue() {
+            elements.queue.innerHTML = state.queue.map((song, index) => `
+                <div class="queue-item flex items-center gap-3 p-3 rounded-lg cursor-pointer ${index === state.currentIndex ? 'active' : ''}" 
+                     data-index="${index}">
+                    <div class="w-10 h-10 rounded flex-shrink-0 flex items-center justify-center text-white text-sm font-medium"
+                         style="background: ${song.gradient}">
+                        ${index === state.currentIndex && state.isPlaying ? 
+                            '<i class="fas fa-volume-up text-xs pulse-animation"></i>' : 
+                            `<span>${index + 1}</span>`}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium truncate ${index === state.currentIndex ? 'text-green-500' : 'text-white'}">${song.title}</p>
+                        <p class="text-sm text-zinc-400 truncate">${song.artist}</p>
+                    </div>
+                    <span class="text-xs text-zinc-500">${formatTime(song.duration)}</span>
+                </div>
+            `).join('');
+            
+            // Add click handlers
+            document.querySelectorAll('.queue-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const index = parseInt(item.dataset.index);
+                    if (index !== state.currentIndex) {
+                        state.currentIndex = index;
+                        state.currentTime = 0;
+                        updateNowPlaying();
+                        if (!state.isPlaying) {
+                            togglePlay();
+                        }
+                    }
+                });
+            });
+        }
+
+        function updateNowPlaying() {
+            const song = state.queue[state.currentIndex];
+            if (!song) return;
+            
+            // Update album art with animation
+            elements.nowPlaying.classList.remove('fade-in');
+            void elements.nowPlaying.offsetWidth; // Trigger reflow
+            elements.nowPlaying.classList.add('fade-in');
+            
+            // Handle album art - use uploaded image or generated gradient
+            if (song.albumArtUrl) {
+                elements.albumArt.src = song.albumArtUrl;
+            } else {
+                elements.albumArt.src = createAlbumArt(song.gradient, song.title);
+            }
+            elements.albumArtContainer.style.boxShadow = `0 25px 50px -12px ${song.color}40`;
+            
+            elements.trackTitle.textContent = song.title;
+            elements.trackArtist.textContent = song.artist;
+            elements.totalTime.textContent = formatTime(song.duration);
+            
+            // Load audio source if it exists
+            if (song.audioUrl) {
+                elements.audioPlayer.src = song.audioUrl;
+                elements.audioPlayer.volume = state.volume / 100;
+                if (state.isPlaying) {
+                    elements.audioPlayer.play().catch(e => console.log('Play failed:', e));
+                }
+            } else {
+                elements.audioPlayer.src = '';
+            }
+            
+            // Update like button
+            const heartIcon = elements.likeBtn.querySelector('i');
+            if (state.liked.has(song.id)) {
+                heartIcon.className = 'fas fa-heart text-2xl text-green-500';
+            } else {
+                heartIcon.className = 'far fa-heart text-2xl';
+            }
+            
+            // Update document title
+            document.title = `${song.title} - ${song.artist} | Spotify Clone`;
+            
+            // Update body gradient based on song color
+            document.body.style.background = `linear-gradient(to bottom, ${song.color}30 0%, #121212 30%, #000 100%)`;
+            
+            renderQueue();
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const song = state.queue[state.currentIndex];
+            if (!song) return;
+            
+            const progress = (state.currentTime / song.duration) * 100;
+            elements.progressFill.style.width = `${progress}%`;
+            elements.progressBar.value = progress;
+            elements.currentTime.textContent = formatTime(state.currentTime);
+        }
+
+        function togglePlay() {
+            state.isPlaying = !state.isPlaying;
+            const icon = elements.playBtn.querySelector('i');
+            
+            if (state.isPlaying) {
+                icon.className = 'fas fa-pause text-xl';
+                elements.playBtn.title = 'Pause';
+            } else {
+                icon.className = 'fas fa-play text-xl ml-1';
+                elements.playBtn.title = 'Play';
+            }
+            
+            renderQueue();
+        }
+
+        function playNext() {
+            if (state.repeatMode === 2) {
+                // Repeat one
+                state.currentTime = 0;
+            } else if (state.isShuffle) {
+                // Shuffle mode
+                let newIndex;
+                do {
+                    newIndex = Math.floor(Math.random() * state.queue.length);
+                } while (newIndex === state.currentIndex && state.queue.length > 1);
+                state.currentIndex = newIndex;
+                state.currentTime = 0;
+            } else {
+                // Normal next
+                state.currentIndex = (state.currentIndex + 1) % state.queue.length;
+                state.currentTime = 0;
+                
+                // Stop if we've gone through all songs and repeat is off
+                if (state.currentIndex === 0 && state.repeatMode === 0) {
+                    state.isPlaying = false;
+                    togglePlay();
+                    togglePlay(); // Reset button state
+                }
+            }
+            
+            updateNowPlaying();
+        }
+
+        function playPrev() {
+            if (state.currentTime > 3) {
+                // If more than 3 seconds in, restart current song
+                state.currentTime = 0;
+            } else {
+                // Go to previous song
+                state.currentIndex = (state.currentIndex - 1 + state.queue.length) % state.queue.length;
+                state.currentTime = 0;
+            }
+            
+            updateNowPlaying();
+        }
+
+        function toggleShuffle() {
+            state.isShuffle = !state.isShuffle;
+            elements.shuffleBtn.classList.toggle('text-green-500', state.isShuffle);
+            elements.shuffleBtn.classList.toggle('text-zinc-400', !state.isShuffle);
+        }
+
+        function toggleRepeat() {
+            state.repeatMode = (state.repeatMode + 1) % 3;
+            const icon = elements.repeatBtn.querySelector('i');
+            
+            elements.repeatBtn.classList.remove('text-green-500', 'text-zinc-400');
+            
+            switch (state.repeatMode) {
+                case 0:
+                    icon.className = 'fas fa-redo text-lg';
+                    elements.repeatBtn.classList.add('text-zinc-400');
+                    break;
+                case 1:
+                    icon.className = 'fas fa-redo text-lg';
+                    elements.repeatBtn.classList.add('text-green-500');
+                    break;
+                case 2:
+                    icon.className = 'fas fa-redo text-lg';
+                    elements.repeatBtn.classList.add('text-green-500');
+                    elements.repeatBtn.innerHTML = '<i class="fas fa-redo text-lg"></i><span class="absolute -top-1 -right-1 text-xs">1</span>';
+                    elements.repeatBtn.classList.add('relative');
+                    break;
+            }
+            
+            if (state.repeatMode !== 2) {
+                elements.repeatBtn.innerHTML = '<i class="fas fa-redo text-lg"></i>';
+                elements.repeatBtn.classList.remove('relative');
+            }
+        }
+
+        function updateVolume(value) {
+            state.volume = value;
+            elements.volumeFill.style.width = `${value}%`;
+            
+            const icon = elements.volumeBtn.querySelector('i');
+            if (value === 0) {
+                icon.className = 'fas fa-volume-mute';
+            } else if (value < 50) {
+                icon.className = 'fas fa-volume-down';
+            } else {
+                icon.className = 'fas fa-volume-up';
+            }
+        }
+
+        function toggleLike() {
+            const song = state.queue[state.currentIndex];
+            if (!song) return;
+            
+            const heartIcon = elements.likeBtn.querySelector('i');
+            
+            if (state.liked.has(song.id)) {
+                state.liked.delete(song.id);
+                heartIcon.className = 'far fa-heart text-2xl';
+            } else {
+                state.liked.add(song.id);
+                heartIcon.className = 'fas fa-heart text-2xl text-green-500';
+                
+                // Add animation
+                heartIcon.style.transform = 'scale(1.3)';
+                setTimeout(() => {
+                    heartIcon.style.transform = 'scale(1)';
+                }, 200);
+            }
+        }
+
+        // Event listeners
+        elements.playBtn.addEventListener('click', togglePlay);
+        elements.nextBtn.addEventListener('click', () => {
+            playNext();
+            if (!state.isPlaying) togglePlay();
+        });
+        elements.prevBtn.addEventListener('click', () => {
+            playPrev();
+            if (!state.isPlaying) togglePlay();
+        });
+        elements.shuffleBtn.addEventListener('click', toggleShuffle);
+        elements.repeatBtn.addEventListener('click', toggleRepeat);
+        elements.likeBtn.addEventListener('click', toggleLike);
+
+        elements.progressBar.addEventListener('input', (e) => {
+            const song = state.queue[state.currentIndex];
+            if (!song) return;
+            state.currentTime = (e.target.value / 100) * song.duration;
+            updateProgress();
+        });
+
+        elements.volumeSlider.addEventListener('input', (e) => {
+            updateVolume(parseInt(e.target.value));
+        });
+
+        let previousVolume = 70;
+        elements.volumeBtn.addEventListener('click', () => {
+            if (state.volume > 0) {
+                previousVolume = state.volume;
+                updateVolume(0);
+                elements.volumeSlider.value = 0;
+            } else {
+                updateVolume(previousVolume);
+                elements.volumeSlider.value = previousVolume;
+            }
+        });
+
+        elements.clearQueue.addEventListener('click', () => {
+            if (confirm('Clear the queue?')) {
+                state.queue = [...songs];
+                state.currentIndex = 0;
+                state.currentTime = 0;
+                state.isPlaying = false;
+                const icon = elements.playBtn.querySelector('i');
+                icon.className = 'fas fa-play text-xl ml-1';
+                updateNowPlaying();
+            }
+        });
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch (e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowRight':
+                    if (e.shiftKey) {
+                        playNext();
+                    } else {
+                        state.currentTime = Math.min(state.currentTime + 10, state.queue[state.currentIndex]?.duration || 0);
+                        updateProgress();
+                    }
+                    break;
+                case 'ArrowLeft':
+                    if (e.shiftKey) {
+                        playPrev();
+                    } else {
+                        state.currentTime = Math.max(state.currentTime - 10, 0);
+                        updateProgress();
+                    }
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    const newVolUp = Math.min(state.volume + 10, 100);
+                    updateVolume(newVolUp);
+                    elements.volumeSlider.value = newVolUp;
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    const newVolDown = Math.max(state.volume - 10, 0);
+                    updateVolume(newVolDown);
+                    elements.volumeSlider.value = newVolDown;
+                    break;
+                case 'KeyS':
+                    toggleShuffle();
+                    break;
+                case 'KeyR':
+                    toggleRepeat();
+                    break;
+                case 'KeyL':
+                    toggleLike();
+                    break;
+            }
+        });
+
+        // Extended Audio Parsing (MP3, FLAC, etc.)
+        elements.cloudBtn = document.getElementById('cloudBtn');
+
+        function parseAudioFile(file) {
+            return new Promise((resolve) => {
+                jsmediatags.read(file, {
+                    onSuccess: (tag) => {
+                        const tags = tag.tags;
+                        const title = tags.title || file.name.replace(/\.(mp3|flac|wav|ogg)$/i, '');
+                        const artist = tags.artist || 'Unknown Artist';
+                        
+                        let albumArtUrl = null;
+                        if (tags.picture) {
+                            const {data, type} = tags.picture;
+                            const byteArray = new Uint8Array(data);
+                            const blob = new Blob([byteArray], {type});
+                            albumArtUrl = URL.createObjectURL(blob);
+                        }
+                        
+                        const audioUrl = URL.createObjectURL(file);
+                        const tempAudio = new Audio(audioUrl);
+                        
+                        tempAudio.addEventListener('loadedmetadata', () => {
+                            const randomColors = [
+                                '#e63946', '#9d4edd', '#00b4d8', '#fb8500',
+                                '#8338ec', '#06d6a0', '#495057', '#ff006e',
+                                '#2a9d8f', '#e76f51', '#f4a261', '#264653'
+                            ];
+                            const color = randomColors[Math.floor(Math.random() * randomColors.length)];
+                            const color2 = randomColors[Math.floor(Math.random() * randomColors.length)];
+                            
+                            resolve({
+                                id: nextSongId++,
+                                title,
+                                artist,
+                                duration: tempAudio.duration,
+                                color,
+                                gradient: `linear-gradient(135deg, ${color} 0%, ${color2} 100%)`,
+                                audioUrl,
+                                albumArtUrl
+                            });
+                        });
+
+                        tempAudio.addEventListener('error', () => {
+                             // Fallback for duration fail
+                             resolve({
+                                id: nextSongId++,
+                                title,
+                                artist,
+                                duration: 0,
+                                color: '#555',
+                                gradient: 'linear-gradient(135deg, #555 0%, #000 100%)',
+                                audioUrl,
+                                albumArtUrl
+                            });
+                        });
+                    },
+                    onError: (error) => {
+                        console.log('Tag reading error:', error);
+                        const audioUrl = URL.createObjectURL(file);
+                        const tempAudio = new Audio(audioUrl);
+                        tempAudio.addEventListener('loadedmetadata', () => {
+                            const randomColors = [
+                                '#e63946', '#9d4edd', '#00b4d8', '#fb8500',
+                                '#8338ec', '#06d6a0', '#495057', '#ff006e'
+                            ];
+                            const color = randomColors[Math.floor(Math.random() * randomColors.length)];
+                            const color2 = randomColors[Math.floor(Math.random() * randomColors.length)];
+                            
+                            resolve({
+                                id: nextSongId++,
+                                title: file.name.replace(/\.(mp3|flac|wav|ogg)$/i, ''),
+                                artist: 'Unknown Artist',
+                                duration: tempAudio.duration,
+                                color,
+                                gradient: `linear-gradient(135deg, ${color} 0%, ${color2} 100%)`,
+                                audioUrl,
+                                albumArtUrl: null
+                            });
+                        });
+                    }
+                });
+            });
+        }
+
+        async function fetchGithubSongs() {
+            elements.cloudBtn.disabled = true;
+            elements.cloudBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            
+            try {
+                // Fetch contents from the repository
+                const response = await fetch('https://api.github.com/repos/cloudcompile/music/contents/');
+                if (!response.ok) throw new Error('Failed to connect to Cloud Library');
+                
+                const data = await response.json();
+                // Filter for audio files
+                const audioFiles = data.filter(item => item.name.match(/\.(mp3|flac)$/i));
+                
+                if (audioFiles.length === 0) {
+                    alert('No music files found in the Cloud Library.');
+                    return;
+                }
+                
+                let addedCount = 0;
+                for (const file of audioFiles) {
+                    // Check if already in queue to avoid duplicates (simple check by title)
+                    const exists = state.queue.some(s => s.title === file.name.replace(/\.(mp3|flac)$/i, ''));
+                    if (exists) continue;
+
+                    const randomColors = [
+                        '#e63946', '#9d4edd', '#00b4d8', '#fb8500',
+                        '#8338ec', '#06d6a0', '#495057', '#ff006e'
+                    ];
+                    const color = randomColors[Math.floor(Math.random() * randomColors.length)];
+                    const color2 = randomColors[Math.floor(Math.random() * randomColors.length)];
+                    
+                    const song = {
+                        id: nextSongId++,
+                        title: file.name.replace(/\.(mp3|flac)$/i, '').replace(/_/g, ' '),
+                        artist: 'Cloud Library',
+                        duration: 0, // Duration will be updated upon first play/load
+                        color,
+                        gradient: `linear-gradient(135deg, ${color} 0%, ${color2} 100%)`,
+                        audioUrl: file.download_url, // GitHub API provides the raw download URL
+                        albumArtUrl: null
+                    };
+                    
+                    state.queue.push(song);
+                    addedCount++;
+                }
+                
+                if (addedCount > 0) {
+                    renderQueue();
+                    // alert(`Added ${addedCount} songs from Cloud Library!`);
+                } else {
+                    // alert('All songs from Cloud Library are already in the queue.');
+                }
+                
+            } catch (error) {
+                console.error('Cloud load error:', error);
+                alert('Could not load Cloud Library. Check internet connection or API rate limits.');
+            } finally {
+                elements.cloudBtn.disabled = false;
+                elements.cloudBtn.innerHTML = '<i class="fab fa-github"></i> Load Cloud Library';
+            }
+        }
+
+        elements.uploadBtn.addEventListener('click', () => {
+            elements.fileInput.click();
+        });
+        
+        elements.cloudBtn.addEventListener('click', fetchGithubSongs);
+
+        elements.fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            
+            elements.uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+            for (const file of files) {
+                // Check for audio type or extension
+                if (file.type.startsWith('audio/') || file.name.match(/\.(mp3|flac|wav|ogg)$/i)) {
+                    try {
+                        const song = await parseAudioFile(file);
+                        state.queue.push(song);
+                    } catch (err) {
+                        console.error("Failed to parse file", file.name, err);
+                    }
+                }
+            }
+
+            renderQueue();
+            elements.uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Music';
+            e.target.value = '';
+        });
+
+        // Audio player event listeners
+        elements.audioPlayer.addEventListener('timeupdate', () => {
+            if (!elements.audioPlayer.paused) {
+                state.currentTime = elements.audioPlayer.currentTime;
+                const song = state.queue[state.currentIndex];
+                if (song && song.audioUrl) {
+                    updateProgress();
+                }
+            }
+        });
+
+        elements.audioPlayer.addEventListener('ended', () => {
+            playNext();
+        });
+
+        elements.audioPlayer.addEventListener('loadedmetadata', () => {
+            const song = state.queue[state.currentIndex];
+            if (song && song.audioUrl) {
+                song.duration = elements.audioPlayer.duration;
+                elements.totalTime.textContent = formatTime(song.duration);
+            }
+        });
+
+        // Update togglePlay to control audio element
+        const originalTogglePlay = togglePlay;
+        togglePlay = function() {
+            originalTogglePlay();
+            const song = state.queue[state.currentIndex];
+            
+            if (song && song.audioUrl) {
+                if (state.isPlaying) {
+                    elements.audioPlayer.play().catch(e => console.log('Play failed:', e));
+                } else {
+                    elements.audioPlayer.pause();
+                }
+            }
+        };
+
+        // Update volume control to affect audio element
+        const originalUpdateVolume = updateVolume;
+        updateVolume = function(value) {
+            originalUpdateVolume(value);
+            elements.audioPlayer.volume = value / 100;
+        };
+
+        // Update progress bar seeking
+        elements.progressBar.addEventListener('change', (e) => {
+            const song = state.queue[state.currentIndex];
+            if (!song) return;
+            
+            const newTime = (e.target.value / 100) * song.duration;
+            state.currentTime = newTime;
+            
+            if (song.audioUrl) {
+                elements.audioPlayer.currentTime = newTime;
+            }
+            
+            updateProgress();
+        });
+
+        // Update keyboard seek controls
+        document.addEventListener('keydown', (e) => {
+            const song = state.queue[state.currentIndex];
+            if (!song) return;
+            
+            if (e.code === 'ArrowRight' && !e.shiftKey && song.audioUrl) {
+                e.preventDefault();
+                elements.audioPlayer.currentTime = Math.min(
+                    elements.audioPlayer.currentTime + 10,
+                    song.duration
+                );
+            } else if (e.code === 'ArrowLeft' && !e.shiftKey && song.audioUrl) {
+                e.preventDefault();
+                elements.audioPlayer.currentTime = Math.max(
+                    elements.audioPlayer.currentTime - 10,
+                    0
+                );
+            }
+        });
+
+        // For demo songs without audio, keep simulated playback
+        setInterval(() => {
+            if (state.isPlaying) {
+                const song = state.queue[state.currentIndex];
+                if (song && !song.audioUrl) {
+                    state.currentTime += 0.1;
+                    if (state.currentTime >= song.duration) {
+                        playNext();
+                    }
+                    updateProgress();
+                }
+            }
+        }, 100);
+
+        // Initialize
+        updateNowPlaying();
+        updateVolume(state.volume);
+    </script>
+</body>
+</html>
