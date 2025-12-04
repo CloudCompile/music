@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CloudTunes Player - A full-featured web music player">
+    <meta name="theme-color" content="#1DB954">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%231DB954'/><text x='50%25' y='55%25' font-family='Arial' font-size='100' fill='white' text-anchor='middle' dominant-baseline='middle'>♪</text></svg>">
     <title>CloudTunes Player</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -10,8 +16,56 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
+        :root {
+            --bg-primary: #121212;
+            --bg-secondary: #181818;
+            --bg-tertiary: #282828;
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --accent-primary: #1DB954;
+            --accent-hover: #1ed760;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-blur: 20px;
+        }
+
+        .theme-light {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #e5e5e5;
+            --bg-tertiary: #d5d5d5;
+            --text-primary: #121212;
+            --text-secondary: #535353;
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(0, 0, 0, 0.1);
+        }
+
+        .theme-purple {
+            --bg-primary: #1a0a2e;
+            --bg-secondary: #2d1b4e;
+            --bg-tertiary: #3d2b5e;
+            --accent-primary: #9d4edd;
+            --accent-hover: #c77dff;
+            --glass-bg: rgba(157, 78, 221, 0.1);
+            --glass-border: rgba(157, 78, 221, 0.2);
+        }
+
+        .theme-ocean {
+            --bg-primary: #0a192f;
+            --bg-secondary: #112240;
+            --bg-tertiary: #1d3456;
+            --accent-primary: #64ffda;
+            --accent-hover: #8bffe8;
+            --glass-bg: rgba(100, 255, 218, 0.05);
+            --glass-border: rgba(100, 255, 218, 0.1);
+        }
+
         * {
             font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
         }
         
         ::-webkit-scrollbar {
@@ -19,7 +73,7 @@
         }
         
         ::-webkit-scrollbar-track {
-            background: #121212;
+            background: var(--bg-primary);
         }
         
         ::-webkit-scrollbar-thumb {
@@ -29,6 +83,42 @@
         
         ::-webkit-scrollbar-thumb:hover {
             background: #727272;
+        }
+
+        /* Glassmorphic styles */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--glass-blur));
+            -webkit-backdrop-filter: blur(var(--glass-blur));
+            border: 1px solid var(--glass-border);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+        }
+
+        .glass-sidebar {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-modal {
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-controls {
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7), transparent);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         }
         
         .progress-bar::-webkit-slider-thumb {
@@ -108,7 +198,7 @@
         
         .play-btn:hover {
             transform: scale(1.08);
-            background: #1ed760 !important;
+            background: var(--accent-hover) !important;
         }
         
         .fade-in {
@@ -120,6 +210,33 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
+        .slide-in-left {
+            animation: slideInLeft 0.3s ease-out;
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-100%); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .slide-out-left {
+            animation: slideOutLeft 0.3s ease-out forwards;
+        }
+
+        @keyframes slideOutLeft {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(-100%); }
+        }
+
+        .modal-fade-in {
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
         .pulse-animation {
             animation: pulse 2s infinite;
         }
@@ -141,23 +258,460 @@
         .rotating.paused {
             animation-play-state: paused;
         }
+
+        .sidebar-collapsed {
+            width: 0 !important;
+            padding: 0 !important;
+            overflow: hidden;
+        }
+
+        .sidebar-toggle {
+            transition: all 0.3s ease;
+        }
+
+        .nav-item {
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-item.active {
+            background: rgba(29, 185, 84, 0.2);
+            color: var(--accent-primary);
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                z-index: 50;
+                height: 100vh;
+            }
+
+            .sidebar.sidebar-collapsed {
+                transform: translateX(-100%);
+            }
+        }
+
+        /* Custom scrollbar for light theme */
+        .theme-light ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .theme-light ::-webkit-scrollbar-thumb {
+            background: #999;
+        }
+
+        /* Tab styles */
+        .tab-btn {
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-primary);
+            border-bottom: 2px solid var(--accent-primary);
+        }
+
+        /* Playlist item */
+        .playlist-item {
+            transition: all 0.2s ease;
+        }
+
+        .playlist-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Toast notification */
+        .toast {
+            animation: toastSlideIn 0.3s ease-out;
+        }
+
+        @keyframes toastSlideIn {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Accent color for buttons */
+        .btn-accent {
+            background: var(--accent-primary);
+        }
+
+        .btn-accent:hover {
+            background: var(--accent-hover);
+        }
+
+        /* Ensure hidden class works with flex */
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-b from-zinc-900 to-black min-h-screen text-white">
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2"></div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-modal rounded-2xl p-8 max-w-md w-full modal-fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Welcome to CloudTunes</h2>
+                <button id="closeAuthModal" class="text-zinc-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Auth Tabs -->
+            <div class="flex border-b border-zinc-700 mb-6">
+                <button class="tab-btn active flex-1 py-3 text-center" data-tab="login">Sign In</button>
+                <button class="tab-btn flex-1 py-3 text-center text-zinc-400" data-tab="register">Sign Up</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="loginTab" class="auth-tab">
+                <form id="loginForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-zinc-400 mb-2">Email</label>
+                        <input type="email" id="loginEmail" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500" placeholder="your@email.com" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-zinc-400 mb-2">Password</label>
+                        <input type="password" id="loginPassword" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="w-full btn-accent text-white font-semibold py-3 rounded-lg transition">
+                        Sign In
+                    </button>
+                </form>
+                
+                <div class="relative my-6">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-zinc-700"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-4 bg-zinc-900 text-zinc-400">or continue with</span>
+                    </div>
+                </div>
+
+                <button id="googleLoginBtn" class="w-full bg-white text-gray-800 font-semibold py-3 rounded-lg transition hover:bg-gray-100 flex items-center justify-center gap-3">
+                    <i class="fab fa-google text-lg"></i>
+                    Sign in with Google
+                </button>
+            </div>
+
+            <!-- Register Form -->
+            <div id="registerTab" class="auth-tab hidden">
+                <form id="registerForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-zinc-400 mb-2">Display Name</label>
+                        <input type="text" id="registerName" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500" placeholder="Your Name" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-zinc-400 mb-2">Email</label>
+                        <input type="email" id="registerEmail" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500" placeholder="your@email.com" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-zinc-400 mb-2">Password</label>
+                        <input type="password" id="registerPassword" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500" placeholder="••••••••" required minlength="6">
+                    </div>
+                    <button type="submit" class="w-full btn-accent text-white font-semibold py-3 rounded-lg transition">
+                        Create Account
+                    </button>
+                </form>
+                
+                <div class="relative my-6">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-zinc-700"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-4 bg-zinc-900 text-zinc-400">or continue with</span>
+                    </div>
+                </div>
+
+                <button id="googleRegisterBtn" class="w-full bg-white text-gray-800 font-semibold py-3 rounded-lg transition hover:bg-gray-100 flex items-center justify-center gap-3">
+                    <i class="fab fa-google text-lg"></i>
+                    Sign up with Google
+                </button>
+            </div>
+
+            <p id="authError" class="text-red-500 text-sm mt-4 hidden"></p>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-modal rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto modal-fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Settings</h2>
+                <button id="closeSettings" class="text-zinc-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Theme Selection -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3">Theme</h3>
+                <div class="grid grid-cols-4 gap-3">
+                    <button class="theme-option p-3 rounded-lg border-2 border-transparent hover:border-green-500 transition" data-theme="default">
+                        <div class="w-full h-8 rounded bg-gradient-to-r from-zinc-900 to-black mb-2"></div>
+                        <span class="text-xs">Dark</span>
+                    </button>
+                    <button class="theme-option p-3 rounded-lg border-2 border-transparent hover:border-green-500 transition" data-theme="light">
+                        <div class="w-full h-8 rounded bg-gradient-to-r from-gray-100 to-gray-200 mb-2"></div>
+                        <span class="text-xs">Light</span>
+                    </button>
+                    <button class="theme-option p-3 rounded-lg border-2 border-transparent hover:border-green-500 transition" data-theme="purple">
+                        <div class="w-full h-8 rounded bg-gradient-to-r from-purple-900 to-purple-600 mb-2"></div>
+                        <span class="text-xs">Purple</span>
+                    </button>
+                    <button class="theme-option p-3 rounded-lg border-2 border-transparent hover:border-green-500 transition" data-theme="ocean">
+                        <div class="w-full h-8 rounded bg-gradient-to-r from-blue-900 to-teal-500 mb-2"></div>
+                        <span class="text-xs">Ocean</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Advanced Mode -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3">Advanced Mode</h3>
+                <label class="flex items-center justify-between p-4 bg-zinc-800 rounded-lg cursor-pointer">
+                    <div>
+                        <span class="font-medium">Enable Advanced Mode</span>
+                        <p class="text-sm text-zinc-400">Edit MP3/MP4 metadata and access advanced options</p>
+                    </div>
+                    <input type="checkbox" id="advancedMode" class="w-5 h-5 accent-green-500">
+                </label>
+            </div>
+
+            <!-- PWA Install -->
+            <div class="mb-6" id="pwaSection">
+                <h3 class="text-lg font-semibold mb-3">Install App</h3>
+                <button id="pwaInstallBtn" class="w-full btn-accent text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2">
+                    <i class="fas fa-download"></i>
+                    Install CloudTunes
+                </button>
+                <p class="text-sm text-zinc-400 mt-2">Install as a Progressive Web App for offline access</p>
+            </div>
+
+            <!-- Version Info -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3">Version Info</h3>
+                <div class="p-4 bg-zinc-800 rounded-lg">
+                    <div class="flex justify-between items-center">
+                        <span>Current Version</span>
+                        <span class="font-mono text-green-500" id="versionNumber">v1.0.0</span>
+                    </div>
+                    <button id="checkUpdatesBtn" class="mt-3 text-sm text-green-500 hover:text-green-400">
+                        <i class="fas fa-sync-alt mr-1"></i> Check for updates
+                    </button>
+                </div>
+            </div>
+
+            <!-- Changelog -->
+            <div>
+                <h3 class="text-lg font-semibold mb-3">Changelog</h3>
+                <button id="viewChangelogBtn" class="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2">
+                    <i class="fas fa-list"></i>
+                    View Changelog
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Changelog Modal -->
+    <div id="changelogModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-modal rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto modal-fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Changelog</h2>
+                <button id="closeChangelog" class="text-zinc-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="space-y-6">
+                <div class="border-l-2 border-green-500 pl-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="font-mono text-green-500">v1.0.0</span>
+                        <span class="text-zinc-400 text-sm">- Initial Release</span>
+                    </div>
+                    <ul class="text-sm text-zinc-300 space-y-1">
+                        <li>• Full-featured music player with queue management</li>
+                        <li>• MP3 and MP4 file support with metadata parsing</li>
+                        <li>• Firebase Authentication (Email/Password + Google)</li>
+                        <li>• Playlist creation and management</li>
+                        <li>• Multiple themes (Dark, Light, Purple, Ocean)</li>
+                        <li>• PWA support for offline access</li>
+                        <li>• Glassmorphic UI design</li>
+                        <li>• Keyboard shortcuts for playback control</li>
+                        <li>• Shuffle and repeat modes</li>
+                        <li>• Volume control with visual feedback</li>
+                        <li>• Favorites/liked songs system</li>
+                        <li>• Advanced mode for metadata editing</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playlist Modal -->
+    <div id="playlistModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-modal rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto modal-fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold" id="playlistModalTitle">Create Playlist</h2>
+                <button id="closePlaylist" class="text-zinc-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <form id="playlistForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">Playlist Name</label>
+                    <input type="text" id="playlistName" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500" placeholder="My Playlist" required>
+                </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">Description (optional)</label>
+                    <textarea id="playlistDescription" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500 resize-none" rows="2" placeholder="Describe your playlist"></textarea>
+                </div>
+                <input type="hidden" id="editPlaylistId">
+                <button type="submit" class="w-full btn-accent text-white font-semibold py-3 rounded-lg transition">
+                    Save Playlist
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Metadata Editor Modal (Advanced Mode) -->
+    <div id="metadataModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-modal rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto modal-fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Edit Metadata</h2>
+                <button id="closeMetadata" class="text-zinc-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <form id="metadataForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">Title</label>
+                    <input type="text" id="metaTitle" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">Artist</label>
+                    <input type="text" id="metaArtist" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">Album</label>
+                    <input type="text" id="metaAlbum" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">Genre</label>
+                    <input type="text" id="metaGenre" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">Year</label>
+                    <input type="text" id="metaYear" class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500" placeholder="e.g., 2024">
+                </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">Album Art</label>
+                    <div class="flex gap-2">
+                        <input type="file" id="metaAlbumArt" accept="image/*" class="hidden">
+                        <button type="button" id="selectAlbumArtBtn" class="flex-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg px-4 py-3 text-white text-left transition">
+                            <i class="fas fa-image mr-2"></i>
+                            <span id="albumArtFileName">Choose image...</span>
+                        </button>
+                        <button type="button" id="clearAlbumArtBtn" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg px-4 py-3 text-zinc-400 hover:text-white transition">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <input type="hidden" id="editSongId">
+                <div class="flex gap-3">
+                    <button type="submit" class="flex-1 btn-accent text-white font-semibold py-3 rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i>Save Changes
+                    </button>
+                    <button type="button" id="downloadWithMetadataBtn" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition">
+                        <i class="fas fa-download mr-2"></i>Download
+                    </button>
+                </div>
+                <p class="text-xs text-zinc-500 text-center">Save updates metadata locally. Download creates a new file with embedded metadata.</p>
+            </form>
+        </div>
+    </div>
+
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar / Queue -->
-        <aside class="w-80 bg-black p-4 flex flex-col border-r border-zinc-800">
+        <aside id="sidebar" class="sidebar w-80 glass-sidebar p-4 flex flex-col transition-all duration-300 overflow-hidden">
+            <!-- Toggle Button (Mobile) -->
+            <button id="sidebarToggle" class="md:hidden absolute top-4 -right-12 bg-zinc-800 p-2 rounded-r-lg z-10">
+                <i class="fas fa-bars"></i>
+            </button>
+
             <div class="flex items-center gap-2 mb-6">
                 <i class="fas fa-cloud text-3xl text-green-500"></i>
                 <span class="text-xl font-bold">CloudTunes</span>
+                <button id="sidebarCollapseBtn" class="ml-auto text-zinc-400 hover:text-white hidden md:block">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
             </div>
-            
-            <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Queue</h2>
+
+            <!-- User Section -->
+            <div id="userSection" class="mb-4 p-3 glass-card rounded-lg">
+                <div id="loggedOutView" class="flex items-center justify-between">
+                    <span class="text-sm text-zinc-400">Sign in to save your data</span>
+                    <button id="showAuthBtn" class="text-green-500 hover:text-green-400 text-sm font-semibold">
+                        Sign In
+                    </button>
+                </div>
+                <div id="loggedInView" class="hidden">
+                    <div class="flex items-center gap-3">
+                        <div id="userAvatar" class="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">
+                            U
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p id="userName" class="font-medium truncate">User</p>
+                            <p id="userEmail" class="text-xs text-zinc-400 truncate">user@email.com</p>
+                        </div>
+                        <button id="logoutBtn" class="text-zinc-400 hover:text-white" title="Sign Out">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="mb-4 space-y-1">
+                <button class="nav-item w-full text-left p-3 rounded-lg flex items-center gap-3 active" data-view="queue">
+                    <i class="fas fa-list w-5"></i>
+                    <span>Queue</span>
+                </button>
+                <button class="nav-item w-full text-left p-3 rounded-lg flex items-center gap-3" data-view="playlists">
+                    <i class="fas fa-folder w-5"></i>
+                    <span>Playlists</span>
+                </button>
+                <button class="nav-item w-full text-left p-3 rounded-lg flex items-center gap-3" data-view="favorites">
+                    <i class="fas fa-heart w-5"></i>
+                    <span>Favorites</span>
+                </button>
+                <button id="settingsBtn" class="nav-item w-full text-left p-3 rounded-lg flex items-center gap-3">
+                    <i class="fas fa-cog w-5"></i>
+                    <span>Settings</span>
+                </button>
+            </nav>
             
             <!-- Upload Buttons -->
             <div class="mb-4 space-y-3">
-                <input type="file" id="fileInput" accept="audio/*" multiple class="hidden">
-                <button id="uploadBtn" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2">
+                <input type="file" id="fileInput" accept="audio/*,video/mp4" multiple class="hidden">
+                <button id="uploadBtn" class="w-full btn-accent text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2">
                     <i class="fas fa-upload"></i>
                     <span>Upload Music</span>
                 </button>
@@ -166,9 +720,34 @@
                     <span>Load Cloud Library</span>
                 </button>
             </div>
-            
-            <div id="queue" class="flex-1 overflow-y-auto space-y-1">
-                <!-- Queue items will be inserted here -->
+
+            <!-- Queue View -->
+            <div id="queueView" class="view-panel flex-1 overflow-y-auto">
+                <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Queue</h2>
+                <div id="queue" class="space-y-1">
+                    <!-- Queue items will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Playlists View -->
+            <div id="playlistsView" class="view-panel flex-1 overflow-y-auto hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Playlists</h2>
+                    <button id="createPlaylistBtn" class="text-green-500 hover:text-green-400">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div id="playlists" class="space-y-1">
+                    <!-- Playlists will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Favorites View -->
+            <div id="favoritesView" class="view-panel flex-1 overflow-y-auto hidden">
+                <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Favorites</h2>
+                <div id="favorites" class="space-y-1">
+                    <!-- Favorites will be inserted here -->
+                </div>
             </div>
             
             <div class="mt-4 pt-4 border-t border-zinc-800 space-y-2">
@@ -178,6 +757,11 @@
             </div>
         </aside>
         
+        <!-- Sidebar Expand Button (when collapsed) -->
+        <button id="sidebarExpandBtn" class="hidden fixed left-0 top-1/2 -translate-y-1/2 bg-zinc-800 hover:bg-zinc-700 p-2 rounded-r-lg z-40 transition-all">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+
         <!-- Main Content -->
         <main class="flex-1 flex flex-col overflow-hidden">
             <!-- Now Playing Section -->
@@ -185,18 +769,23 @@
                 <div class="text-center fade-in" id="nowPlaying">
                     <!-- Album Art -->
                     <div class="relative inline-block mb-8">
-                        <div id="albumArtContainer" class="w-72 h-72 md:w-96 md:h-96 rounded-lg shadow-2xl overflow-hidden album-art">
+                        <div id="albumArtContainer" class="w-72 h-72 md:w-96 md:h-96 rounded-lg shadow-2xl overflow-hidden album-art glass-card">
                             <img id="albumArt" src="" alt="Album Art" class="w-full h-full object-cover">
+                            <video id="videoPlayer" class="w-full h-full object-cover hidden"></video>
                         </div>
                         <div id="vinylOverlay" class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity duration-300">
                             <i class="fas fa-music text-6xl text-white/50"></i>
                         </div>
+                        <!-- Edit Metadata Button (Advanced Mode) -->
+                        <button id="editMetadataBtn" class="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full hidden transition">
+                            <i class="fas fa-edit"></i>
+                        </button>
                     </div>
                     
                     <!-- Track Info -->
                     <div class="mb-4">
                         <h1 id="trackTitle" class="text-2xl md:text-3xl font-bold mb-2 transition-all duration-300">Select a Track</h1>
-                        <p id="trackArtist" class="text-zinc-400 text-lg">Browse the queue</p>
+                        <p id="trackArtist" class="text-zinc-400 text-lg">Upload or browse to get started</p>
                     </div>
                     
                     <!-- Like Button -->
@@ -207,7 +796,7 @@
             </div>
             
             <!-- Player Controls -->
-            <div class="bg-gradient-to-t from-black via-zinc-900/95 to-transparent p-6">
+            <div class="glass-controls p-6">
                 <!-- Progress Bar -->
                 <div class="max-w-3xl mx-auto mb-4">
                     <div class="flex items-center gap-3">
@@ -269,74 +858,81 @@
     <!-- Hidden Audio Element -->
     <audio id="audioPlayer"></audio>
 
-    <script>
-        // Sample song data with gradient backgrounds as album art
-        const songs = [
-            {
-                id: 1,
-                title: "Blinding Lights",
-                artist: "The Weeknd",
-                duration: 203,
-                color: "#e63946",
-                gradient: "linear-gradient(135deg, #e63946 0%, #1d3557 100%)"
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, 
+            signInWithPopup, 
+            GoogleAuthProvider,
+            signOut,
+            onAuthStateChanged,
+            updateProfile
+        } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import {
+            getFirestore,
+            doc,
+            setDoc,
+            getDoc
+        } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBN7ctL775CI1NyhYjqLoLgBljkTFyWtOA",
+            authDomain: "cloudtunes-4cc0a.firebaseapp.com",
+            projectId: "cloudtunes-4cc0a",
+            storageBucket: "cloudtunes-4cc0a.firebasestorage.app",
+            messagingSenderId: "901963678218",
+            appId: "1:901963678218:web:5ad3e5b3ec121e762095f3",
+            measurementId: "G-GXCR7RQSDF"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        // Make Firebase functions available globally
+        window.firebaseAuth = {
+            auth,
+            db,
+            signInWithEmailAndPassword: (email, password) => signInWithEmailAndPassword(auth, email, password),
+            createUserWithEmailAndPassword: (email, password) => createUserWithEmailAndPassword(auth, email, password),
+            signInWithGoogle: () => signInWithPopup(auth, googleProvider),
+            signOut: () => signOut(auth),
+            updateProfile: (user, data) => updateProfile(user, data),
+            onAuthStateChanged: (callback) => onAuthStateChanged(auth, callback),
+            saveUserData: async (userId, data) => {
+                try {
+                    await setDoc(doc(db, "users", userId), data, { merge: true });
+                } catch (error) {
+                    console.error("Error saving user data:", error);
+                }
             },
-            {
-                id: 2,
-                title: "Levitating",
-                artist: "Dua Lipa",
-                duration: 183,
-                color: "#9d4edd",
-                gradient: "linear-gradient(135deg, #9d4edd 0%, #c77dff 100%)"
-            },
-            {
-                id: 3,
-                title: "Stay",
-                artist: "Kid LAROI & Justin Bieber",
-                duration: 142,
-                color: "#00b4d8",
-                gradient: "linear-gradient(135deg, #00b4d8 0%, #0077b6 100%)"
-            },
-            {
-                id: 4,
-                title: "Heat Waves",
-                artist: "Glass Animals",
-                duration: 239,
-                color: "#fb8500",
-                gradient: "linear-gradient(135deg, #fb8500 0%, #ffb703 100%)"
-            },
-            {
-                id: 5,
-                title: "Bad Habits",
-                artist: "Ed Sheeran",
-                duration: 231,
-                color: "#8338ec",
-                gradient: "linear-gradient(135deg, #8338ec 0%, #3a86ff 100%)"
-            },
-            {
-                id: 6,
-                title: "Shivers",
-                artist: "Ed Sheeran",
-                duration: 207,
-                color: "#06d6a0",
-                gradient: "linear-gradient(135deg, #06d6a0 0%, #118ab2 100%)"
-            },
-            {
-                id: 7,
-                title: "Easy On Me",
-                artist: "Adele",
-                duration: 224,
-                color: "#495057",
-                gradient: "linear-gradient(135deg, #495057 0%, #212529 100%)"
-            },
-            {
-                id: 8,
-                title: "Industry Baby",
-                artist: "Lil Nas X & Jack Harlow",
-                duration: 212,
-                color: "#ff006e",
-                gradient: "linear-gradient(135deg, #ff006e 0%, #fb5607 100%)"
+            getUserData: async (userId) => {
+                try {
+                    const docSnap = await getDoc(doc(db, "users", userId));
+                    return docSnap.exists() ? docSnap.data() : null;
+                } catch (error) {
+                    console.error("Error getting user data:", error);
+                    return null;
+                }
             }
-        ];
+        };
+    </script>
+
+    <script>
+        // App Version
+        const APP_VERSION = 'v1.0.0';
+
+        // No demo songs - start with empty queue
+        const songs = [];
 
         // Player state
         let state = {
@@ -347,8 +943,46 @@
             repeatMode: 0, // 0: off, 1: all, 2: one
             volume: 70,
             currentTime: 0,
-            liked: new Set()
+            liked: new Set(),
+            playlists: [],
+            currentUser: null,
+            advancedMode: false,
+            theme: 'default',
+            isVideo: false
         };
+
+        // Load state from localStorage
+        function loadState() {
+            try {
+                const saved = localStorage.getItem('cloudtunes_state');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    state.liked = new Set(parsed.liked || []);
+                    state.playlists = parsed.playlists || [];
+                    state.advancedMode = parsed.advancedMode || false;
+                    state.theme = parsed.theme || 'default';
+                    state.volume = parsed.volume || 70;
+                }
+            } catch (e) {
+                console.error('Failed to load state:', e);
+            }
+        }
+
+        // Save state to localStorage
+        function saveState() {
+            try {
+                const toSave = {
+                    liked: Array.from(state.liked),
+                    playlists: state.playlists,
+                    advancedMode: state.advancedMode,
+                    theme: state.theme,
+                    volume: state.volume
+                };
+                localStorage.setItem('cloudtunes_state', JSON.stringify(toSave));
+            } catch (e) {
+                console.error('Failed to save state:', e);
+            }
+        }
 
         // DOM Elements
         const elements = {
@@ -374,13 +1008,116 @@
             clearQueue: document.getElementById('clearQueue'),
             uploadBtn: document.getElementById('uploadBtn'),
             fileInput: document.getElementById('fileInput'),
-            audioPlayer: document.getElementById('audioPlayer')
+            audioPlayer: document.getElementById('audioPlayer'),
+            videoPlayer: document.getElementById('videoPlayer'),
+            cloudBtn: document.getElementById('cloudBtn'),
+            sidebar: document.getElementById('sidebar'),
+            sidebarCollapseBtn: document.getElementById('sidebarCollapseBtn'),
+            sidebarExpandBtn: document.getElementById('sidebarExpandBtn'),
+            sidebarToggle: document.getElementById('sidebarToggle'),
+            // Auth elements
+            authModal: document.getElementById('authModal'),
+            closeAuthModal: document.getElementById('closeAuthModal'),
+            showAuthBtn: document.getElementById('showAuthBtn'),
+            loginForm: document.getElementById('loginForm'),
+            registerForm: document.getElementById('registerForm'),
+            loginEmail: document.getElementById('loginEmail'),
+            loginPassword: document.getElementById('loginPassword'),
+            registerName: document.getElementById('registerName'),
+            registerEmail: document.getElementById('registerEmail'),
+            registerPassword: document.getElementById('registerPassword'),
+            googleLoginBtn: document.getElementById('googleLoginBtn'),
+            googleRegisterBtn: document.getElementById('googleRegisterBtn'),
+            authError: document.getElementById('authError'),
+            loggedOutView: document.getElementById('loggedOutView'),
+            loggedInView: document.getElementById('loggedInView'),
+            userAvatar: document.getElementById('userAvatar'),
+            userName: document.getElementById('userName'),
+            userEmail: document.getElementById('userEmail'),
+            logoutBtn: document.getElementById('logoutBtn'),
+            // Settings elements
+            settingsBtn: document.getElementById('settingsBtn'),
+            settingsModal: document.getElementById('settingsModal'),
+            closeSettings: document.getElementById('closeSettings'),
+            advancedMode: document.getElementById('advancedMode'),
+            pwaInstallBtn: document.getElementById('pwaInstallBtn'),
+            pwaSection: document.getElementById('pwaSection'),
+            versionNumber: document.getElementById('versionNumber'),
+            checkUpdatesBtn: document.getElementById('checkUpdatesBtn'),
+            viewChangelogBtn: document.getElementById('viewChangelogBtn'),
+            // Changelog
+            changelogModal: document.getElementById('changelogModal'),
+            closeChangelog: document.getElementById('closeChangelog'),
+            // Playlists
+            playlistModal: document.getElementById('playlistModal'),
+            closePlaylist: document.getElementById('closePlaylist'),
+            playlistForm: document.getElementById('playlistForm'),
+            playlistName: document.getElementById('playlistName'),
+            playlistDescription: document.getElementById('playlistDescription'),
+            playlistModalTitle: document.getElementById('playlistModalTitle'),
+            editPlaylistId: document.getElementById('editPlaylistId'),
+            createPlaylistBtn: document.getElementById('createPlaylistBtn'),
+            playlistsContainer: document.getElementById('playlists'),
+            favoritesContainer: document.getElementById('favorites'),
+            // Metadata editor
+            metadataModal: document.getElementById('metadataModal'),
+            closeMetadata: document.getElementById('closeMetadata'),
+            metadataForm: document.getElementById('metadataForm'),
+            metaTitle: document.getElementById('metaTitle'),
+            metaArtist: document.getElementById('metaArtist'),
+            metaAlbum: document.getElementById('metaAlbum'),
+            metaGenre: document.getElementById('metaGenre'),
+            metaYear: document.getElementById('metaYear'),
+            metaAlbumArt: document.getElementById('metaAlbumArt'),
+            selectAlbumArtBtn: document.getElementById('selectAlbumArtBtn'),
+            clearAlbumArtBtn: document.getElementById('clearAlbumArtBtn'),
+            albumArtFileName: document.getElementById('albumArtFileName'),
+            downloadWithMetadataBtn: document.getElementById('downloadWithMetadataBtn'),
+            editSongId: document.getElementById('editSongId'),
+            editMetadataBtn: document.getElementById('editMetadataBtn'),
+            // Views
+            queueView: document.getElementById('queueView'),
+            playlistsView: document.getElementById('playlistsView'),
+            favoritesView: document.getElementById('favoritesView'),
+            toastContainer: document.getElementById('toastContainer')
         };
 
         let nextSongId = songs.length + 1;
+        let deferredPrompt = null;
+        let pendingAlbumArtFile = null; // Store selected album art file for metadata editing
+
+        // Toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast glass-card px-4 py-3 rounded-lg flex items-center gap-3 ${
+                type === 'error' ? 'border-red-500' : 
+                type === 'success' ? 'border-green-500' : 'border-zinc-600'
+            }`;
+            
+            const icon = type === 'error' ? 'fa-exclamation-circle text-red-500' :
+                         type === 'success' ? 'fa-check-circle text-green-500' :
+                         'fa-info-circle text-blue-500';
+            
+            toast.innerHTML = `
+                <i class="fas ${icon}"></i>
+                <span>${message}</span>
+            `;
+            
+            elements.toastContainer.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Global volume state for mute toggle
+        let previousVolume = 70;
 
         // Helper functions
         function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return '0:00';
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -395,7 +1132,6 @@
             // Parse gradient
             const gradientMatch = gradient.match(/linear-gradient\((\d+)deg,\s*([#\w]+)\s*\d+%,\s*([#\w]+)\s*\d+%\)/);
             if (gradientMatch) {
-                const angle = parseInt(gradientMatch[1]);
                 const color1 = gradientMatch[2];
                 const color2 = gradientMatch[3];
                 
@@ -417,7 +1153,7 @@
                 ctx.fill();
                 
                 // Add music note icon
-                ctx.font = 'bold 80px FontAwesome';
+                ctx.font = 'bold 80px Arial';
                 ctx.fillStyle = 'rgba(255,255,255,0.3)';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -427,7 +1163,51 @@
             return canvas.toDataURL();
         }
 
+        function generateRandomGradient() {
+            const randomColors = [
+                '#e63946', '#9d4edd', '#00b4d8', '#fb8500',
+                '#8338ec', '#06d6a0', '#495057', '#ff006e',
+                '#2a9d8f', '#e76f51', '#f4a261', '#264653'
+            ];
+            const color1 = randomColors[Math.floor(Math.random() * randomColors.length)];
+            const color2 = randomColors[Math.floor(Math.random() * randomColors.length)];
+            return {
+                color: color1,
+                gradient: `linear-gradient(135deg, ${color1} 0%, ${color2} 100%)`
+            };
+        }
+
+        // Apply theme
+        function applyTheme(theme) {
+            document.body.classList.remove('theme-light', 'theme-purple', 'theme-ocean');
+            if (theme !== 'default') {
+                document.body.classList.add(`theme-${theme}`);
+            }
+            state.theme = theme;
+            saveState();
+            
+            // Update theme option buttons
+            document.querySelectorAll('.theme-option').forEach(btn => {
+                btn.classList.remove('border-green-500');
+                if (btn.dataset.theme === theme) {
+                    btn.classList.add('border-green-500');
+                }
+            });
+        }
+
+        // Render queue
         function renderQueue() {
+            if (state.queue.length === 0) {
+                elements.queue.innerHTML = `
+                    <div class="text-center py-8 text-zinc-500">
+                        <i class="fas fa-music text-4xl mb-3"></i>
+                        <p>No songs in queue</p>
+                        <p class="text-sm mt-2">Upload music to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
             elements.queue.innerHTML = state.queue.map((song, index) => `
                 <div class="queue-item flex items-center gap-3 p-3 rounded-lg cursor-pointer ${index === state.currentIndex ? 'active' : ''}" 
                      data-index="${index}">
@@ -442,6 +1222,7 @@
                         <p class="text-sm text-zinc-400 truncate">${song.artist}</p>
                     </div>
                     <span class="text-xs text-zinc-500">${formatTime(song.duration)}</span>
+                    ${song.isVideo ? '<i class="fas fa-video text-xs text-zinc-500 ml-1"></i>' : ''}
                 </div>
             `).join('');
             
@@ -461,33 +1242,236 @@
             });
         }
 
+        // Render playlists
+        function renderPlaylists() {
+            if (state.playlists.length === 0) {
+                elements.playlistsContainer.innerHTML = `
+                    <div class="text-center py-8 text-zinc-500">
+                        <i class="fas fa-folder-open text-4xl mb-3"></i>
+                        <p>No playlists yet</p>
+                        <p class="text-sm mt-2">Create your first playlist</p>
+                    </div>
+                `;
+                return;
+            }
+
+            elements.playlistsContainer.innerHTML = state.playlists.map(playlist => `
+                <div class="playlist-item p-3 rounded-lg flex items-center gap-3 cursor-pointer" data-id="${playlist.id}">
+                    <div class="w-10 h-10 rounded bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center">
+                        <i class="fas fa-music text-white"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium truncate">${playlist.name}</p>
+                        <p class="text-sm text-zinc-400">${playlist.songs?.length || 0} songs</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="edit-playlist text-zinc-400 hover:text-white" data-id="${playlist.id}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="delete-playlist text-zinc-400 hover:text-red-500" data-id="${playlist.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Add event listeners
+            document.querySelectorAll('.playlist-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (!e.target.closest('.edit-playlist') && !e.target.closest('.delete-playlist')) {
+                        const playlistId = item.dataset.id;
+                        loadPlaylist(playlistId);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.edit-playlist').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const playlistId = btn.dataset.id;
+                    editPlaylist(playlistId);
+                });
+            });
+
+            document.querySelectorAll('.delete-playlist').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const playlistId = btn.dataset.id;
+                    deletePlaylist(playlistId);
+                });
+            });
+        }
+
+        // Render favorites
+        function renderFavorites() {
+            const favoriteSongs = state.queue.filter(song => state.liked.has(song.id));
+            
+            if (favoriteSongs.length === 0) {
+                elements.favoritesContainer.innerHTML = `
+                    <div class="text-center py-8 text-zinc-500">
+                        <i class="fas fa-heart text-4xl mb-3"></i>
+                        <p>No favorites yet</p>
+                        <p class="text-sm mt-2">Like songs to add them here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            elements.favoritesContainer.innerHTML = favoriteSongs.map((song) => `
+                <div class="queue-item flex items-center gap-3 p-3 rounded-lg cursor-pointer" data-song-id="${song.id}">
+                    <div class="w-10 h-10 rounded flex-shrink-0 flex items-center justify-center text-white text-sm font-medium"
+                         style="background: ${song.gradient}">
+                        <i class="fas fa-heart text-xs"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium truncate text-white">${song.title}</p>
+                        <p class="text-sm text-zinc-400 truncate">${song.artist}</p>
+                    </div>
+                    <span class="text-xs text-zinc-500">${formatTime(song.duration)}</span>
+                </div>
+            `).join('');
+
+            // Add click handlers
+            elements.favoritesContainer.querySelectorAll('.queue-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const songId = parseInt(item.dataset.songId);
+                    const index = state.queue.findIndex(s => s.id === songId);
+                    if (index !== -1) {
+                        state.currentIndex = index;
+                        state.currentTime = 0;
+                        updateNowPlaying();
+                        if (!state.isPlaying) {
+                            togglePlay();
+                        }
+                    }
+                });
+            });
+        }
+
+        // Playlist functions
+        function createPlaylist() {
+            elements.playlistModalTitle.textContent = 'Create Playlist';
+            elements.playlistName.value = '';
+            elements.playlistDescription.value = '';
+            elements.editPlaylistId.value = '';
+            elements.playlistModal.classList.remove('hidden');
+        }
+
+        function editPlaylist(id) {
+            const playlist = state.playlists.find(p => p.id === id);
+            if (!playlist) return;
+
+            elements.playlistModalTitle.textContent = 'Edit Playlist';
+            elements.playlistName.value = playlist.name;
+            elements.playlistDescription.value = playlist.description || '';
+            elements.editPlaylistId.value = id;
+            elements.playlistModal.classList.remove('hidden');
+        }
+
+        function deletePlaylist(id) {
+            if (confirm('Delete this playlist?')) {
+                state.playlists = state.playlists.filter(p => p.id !== id);
+                saveState();
+                renderPlaylists();
+                showToast('Playlist deleted', 'success');
+            }
+        }
+
+        function loadPlaylist(id) {
+            const playlist = state.playlists.find(p => p.id === id);
+            if (!playlist || !playlist.songs?.length) {
+                showToast('Playlist is empty', 'info');
+                return;
+            }
+
+            state.queue = [...playlist.songs];
+            state.currentIndex = 0;
+            state.currentTime = 0;
+            updateNowPlaying();
+            showView('queue');
+            showToast(`Loaded "${playlist.name}"`, 'success');
+        }
+
+        // View switching
+        function showView(viewName) {
+            // Hide all views
+            document.querySelectorAll('.view-panel').forEach(v => v.classList.add('hidden'));
+            
+            // Show selected view
+            const viewElement = document.getElementById(`${viewName}View`);
+            if (viewElement) {
+                viewElement.classList.remove('hidden');
+            }
+
+            // Update nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.view === viewName) {
+                    item.classList.add('active');
+                }
+            });
+
+            // Render view content
+            if (viewName === 'playlists') {
+                renderPlaylists();
+            } else if (viewName === 'favorites') {
+                renderFavorites();
+            }
+        }
+
         function updateNowPlaying() {
             const song = state.queue[state.currentIndex];
-            if (!song) return;
+            if (!song) {
+                elements.trackTitle.textContent = 'Select a Track';
+                elements.trackArtist.textContent = 'Upload or browse to get started';
+                elements.albumArt.src = '';
+                elements.totalTime.textContent = '0:00';
+                return;
+            }
             
             // Update album art with animation
             elements.nowPlaying.classList.remove('fade-in');
             void elements.nowPlaying.offsetWidth; // Trigger reflow
             elements.nowPlaying.classList.add('fade-in');
             
-            // Handle album art - use uploaded image or generated gradient
-            if (song.albumArtUrl) {
-                elements.albumArt.src = song.albumArtUrl;
+            // Determine if video or audio
+            state.isVideo = song.isVideo || false;
+            
+            if (state.isVideo) {
+                elements.albumArt.classList.add('hidden');
+                elements.videoPlayer.classList.remove('hidden');
+                elements.videoPlayer.src = song.audioUrl;
             } else {
-                elements.albumArt.src = createAlbumArt(song.gradient, song.title);
+                elements.albumArt.classList.remove('hidden');
+                elements.videoPlayer.classList.add('hidden');
+                
+                // Handle album art - use uploaded image or generated gradient
+                if (song.albumArtUrl) {
+                    elements.albumArt.src = song.albumArtUrl;
+                } else {
+                    elements.albumArt.src = createAlbumArt(song.gradient, song.title);
+                }
             }
+            
             elements.albumArtContainer.style.boxShadow = `0 25px 50px -12px ${song.color}40`;
             
             elements.trackTitle.textContent = song.title;
             elements.trackArtist.textContent = song.artist;
             elements.totalTime.textContent = formatTime(song.duration);
             
-            // Load audio source if it exists
+            // Load audio/video source if it exists
             if (song.audioUrl) {
-                elements.audioPlayer.src = song.audioUrl;
-                elements.audioPlayer.volume = state.volume / 100;
-                if (state.isPlaying) {
-                    elements.audioPlayer.play().catch(e => console.log('Play failed:', e));
+                if (state.isVideo) {
+                    elements.videoPlayer.volume = state.volume / 100;
+                    if (state.isPlaying) {
+                        elements.videoPlayer.play().catch(e => console.log('Play failed:', e));
+                    }
+                } else {
+                    elements.audioPlayer.src = song.audioUrl;
+                    elements.audioPlayer.volume = state.volume / 100;
+                    if (state.isPlaying) {
+                        elements.audioPlayer.play().catch(e => console.log('Play failed:', e));
+                    }
                 }
             } else {
                 elements.audioPlayer.src = '';
@@ -502,10 +1486,13 @@
             }
             
             // Update document title
-            document.title = `${song.title} - ${song.artist} | Spotify Clone`;
+            document.title = `${song.title} - ${song.artist} | CloudTunes`;
             
             // Update body gradient based on song color
-            document.body.style.background = `linear-gradient(to bottom, ${song.color}30 0%, #121212 30%, #000 100%)`;
+            document.body.style.background = `linear-gradient(to bottom, ${song.color}30 0%, var(--bg-primary) 30%, #000 100%)`;
+            
+            // Show/hide metadata edit button based on advanced mode
+            elements.editMetadataBtn.classList.toggle('hidden', !state.advancedMode);
             
             renderQueue();
             updateProgress();
@@ -513,11 +1500,11 @@
 
         function updateProgress() {
             const song = state.queue[state.currentIndex];
-            if (!song) return;
+            if (!song || !song.duration) return;
             
             const progress = (state.currentTime / song.duration) * 100;
-            elements.progressFill.style.width = `${progress}%`;
-            elements.progressBar.value = progress;
+            elements.progressFill.style.width = `${Math.min(progress, 100)}%`;
+            elements.progressBar.value = Math.min(progress, 100);
             elements.currentTime.textContent = formatTime(state.currentTime);
         }
 
@@ -533,10 +1520,23 @@
                 elements.playBtn.title = 'Play';
             }
             
+            // Control audio/video playback
+            const song = state.queue[state.currentIndex];
+            if (song && song.audioUrl) {
+                const player = state.isVideo ? elements.videoPlayer : elements.audioPlayer;
+                if (state.isPlaying) {
+                    player.play().catch(e => console.log('Play failed:', e));
+                } else {
+                    player.pause();
+                }
+            }
+            
             renderQueue();
         }
 
         function playNext() {
+            if (state.queue.length === 0) return;
+            
             if (state.repeatMode === 2) {
                 // Repeat one
                 state.currentTime = 0;
@@ -556,8 +1556,8 @@
                 // Stop if we've gone through all songs and repeat is off
                 if (state.currentIndex === 0 && state.repeatMode === 0) {
                     state.isPlaying = false;
-                    togglePlay();
-                    togglePlay(); // Reset button state
+                    const icon = elements.playBtn.querySelector('i');
+                    icon.className = 'fas fa-play text-xl ml-1';
                 }
             }
             
@@ -565,9 +1565,15 @@
         }
 
         function playPrev() {
+            if (state.queue.length === 0) return;
+            
             if (state.currentTime > 3) {
                 // If more than 3 seconds in, restart current song
                 state.currentTime = 0;
+                const player = state.isVideo ? elements.videoPlayer : elements.audioPlayer;
+                if (player.src) {
+                    player.currentTime = 0;
+                }
             } else {
                 // Go to previous song
                 state.currentIndex = (state.currentIndex - 1 + state.queue.length) % state.queue.length;
@@ -581,6 +1587,7 @@
             state.isShuffle = !state.isShuffle;
             elements.shuffleBtn.classList.toggle('text-green-500', state.isShuffle);
             elements.shuffleBtn.classList.toggle('text-zinc-400', !state.isShuffle);
+            showToast(state.isShuffle ? 'Shuffle on' : 'Shuffle off');
         }
 
         function toggleRepeat() {
@@ -589,17 +1596,21 @@
             
             elements.repeatBtn.classList.remove('text-green-500', 'text-zinc-400');
             
+            const messages = ['Repeat off', 'Repeat all', 'Repeat one'];
+            showToast(messages[state.repeatMode]);
+            
             switch (state.repeatMode) {
                 case 0:
                     icon.className = 'fas fa-redo text-lg';
                     elements.repeatBtn.classList.add('text-zinc-400');
+                    elements.repeatBtn.innerHTML = '<i class="fas fa-redo text-lg"></i>';
                     break;
                 case 1:
                     icon.className = 'fas fa-redo text-lg';
                     elements.repeatBtn.classList.add('text-green-500');
+                    elements.repeatBtn.innerHTML = '<i class="fas fa-redo text-lg"></i>';
                     break;
                 case 2:
-                    icon.className = 'fas fa-redo text-lg';
                     elements.repeatBtn.classList.add('text-green-500');
                     elements.repeatBtn.innerHTML = '<i class="fas fa-redo text-lg"></i><span class="absolute -top-1 -right-1 text-xs">1</span>';
                     elements.repeatBtn.classList.add('relative');
@@ -607,7 +1618,6 @@
             }
             
             if (state.repeatMode !== 2) {
-                elements.repeatBtn.innerHTML = '<i class="fas fa-redo text-lg"></i>';
                 elements.repeatBtn.classList.remove('relative');
             }
         }
@@ -615,6 +1625,9 @@
         function updateVolume(value) {
             state.volume = value;
             elements.volumeFill.style.width = `${value}%`;
+            
+            const player = state.isVideo ? elements.videoPlayer : elements.audioPlayer;
+            player.volume = value / 100;
             
             const icon = elements.volumeBtn.querySelector('i');
             if (value === 0) {
@@ -624,6 +1637,8 @@
             } else {
                 icon.className = 'fas fa-volume-up';
             }
+            
+            saveState();
         }
 
         function toggleLike() {
@@ -635,6 +1650,7 @@
             if (state.liked.has(song.id)) {
                 state.liked.delete(song.id);
                 heartIcon.className = 'far fa-heart text-2xl';
+                showToast('Removed from favorites');
             } else {
                 state.liked.add(song.id);
                 heartIcon.className = 'fas fa-heart text-2xl text-green-500';
@@ -644,6 +1660,59 @@
                 setTimeout(() => {
                     heartIcon.style.transform = 'scale(1)';
                 }, 200);
+                showToast('Added to favorites');
+            }
+            
+            saveState();
+        }
+
+        // Sidebar collapse
+        function toggleSidebar() {
+            const isCollapsed = elements.sidebar.classList.contains('sidebar-collapsed');
+            
+            if (isCollapsed) {
+                elements.sidebar.classList.remove('sidebar-collapsed');
+                elements.sidebarExpandBtn.classList.add('hidden');
+                elements.sidebarCollapseBtn.querySelector('i').className = 'fas fa-chevron-left';
+            } else {
+                elements.sidebar.classList.add('sidebar-collapsed');
+                elements.sidebarExpandBtn.classList.remove('hidden');
+                elements.sidebarCollapseBtn.querySelector('i').className = 'fas fa-chevron-right';
+            }
+        }
+
+        // Auth functions
+        function showAuthModal() {
+            elements.authModal.classList.remove('hidden');
+            elements.authError.classList.add('hidden');
+        }
+
+        function hideAuthModal() {
+            elements.authModal.classList.add('hidden');
+        }
+
+        function showAuthError(message) {
+            elements.authError.textContent = message;
+            elements.authError.classList.remove('hidden');
+        }
+
+        function updateUserUI(user) {
+            if (user) {
+                elements.loggedOutView.classList.add('hidden');
+                elements.loggedInView.classList.remove('hidden');
+                elements.userName.textContent = user.displayName || 'User';
+                elements.userEmail.textContent = user.email;
+                elements.userAvatar.textContent = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+                
+                if (user.photoURL) {
+                    elements.userAvatar.innerHTML = `<img src="${user.photoURL}" alt="Avatar" class="w-full h-full rounded-full">`;
+                }
+                
+                state.currentUser = user;
+            } else {
+                elements.loggedOutView.classList.remove('hidden');
+                elements.loggedInView.classList.add('hidden');
+                state.currentUser = null;
             }
         }
 
@@ -651,11 +1720,11 @@
         elements.playBtn.addEventListener('click', togglePlay);
         elements.nextBtn.addEventListener('click', () => {
             playNext();
-            if (!state.isPlaying) togglePlay();
+            if (!state.isPlaying && state.queue.length > 0) togglePlay();
         });
         elements.prevBtn.addEventListener('click', () => {
             playPrev();
-            if (!state.isPlaying) togglePlay();
+            if (!state.isPlaying && state.queue.length > 0) togglePlay();
         });
         elements.shuffleBtn.addEventListener('click', toggleShuffle);
         elements.repeatBtn.addEventListener('click', toggleRepeat);
@@ -663,7 +1732,7 @@
 
         elements.progressBar.addEventListener('input', (e) => {
             const song = state.queue[state.currentIndex];
-            if (!song) return;
+            if (!song || !song.duration) return;
             state.currentTime = (e.target.value / 100) * song.duration;
             updateProgress();
         });
@@ -672,7 +1741,6 @@
             updateVolume(parseInt(e.target.value));
         });
 
-        let previousVolume = 70;
         elements.volumeBtn.addEventListener('click', () => {
             if (state.volume > 0) {
                 previousVolume = state.volume;
@@ -685,38 +1753,546 @@
         });
 
         elements.clearQueue.addEventListener('click', () => {
+            if (state.queue.length === 0) return;
             if (confirm('Clear the queue?')) {
-                state.queue = [...songs];
+                // Stop playback
+                elements.audioPlayer.pause();
+                elements.videoPlayer.pause();
+                
+                state.queue = [];
                 state.currentIndex = 0;
                 state.currentTime = 0;
                 state.isPlaying = false;
                 const icon = elements.playBtn.querySelector('i');
                 icon.className = 'fas fa-play text-xl ml-1';
                 updateNowPlaying();
+                showToast('Queue cleared');
             }
+        });
+
+        // Sidebar controls
+        elements.sidebarCollapseBtn.addEventListener('click', toggleSidebar);
+        elements.sidebarExpandBtn.addEventListener('click', toggleSidebar);
+        elements.sidebarToggle?.addEventListener('click', toggleSidebar);
+
+        // Navigation
+        document.querySelectorAll('.nav-item[data-view]').forEach(item => {
+            item.addEventListener('click', () => {
+                showView(item.dataset.view);
+            });
+        });
+
+        // Auth modal
+        elements.showAuthBtn.addEventListener('click', showAuthModal);
+        elements.closeAuthModal.addEventListener('click', hideAuthModal);
+
+        // Auth tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('active');
+                    b.classList.add('text-zinc-400');
+                });
+                btn.classList.add('active');
+                btn.classList.remove('text-zinc-400');
+                
+                document.querySelectorAll('.auth-tab').forEach(t => t.classList.add('hidden'));
+                document.getElementById(`${tab}Tab`).classList.remove('hidden');
+            });
+        });
+
+        // Login form
+        elements.loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = elements.loginEmail.value;
+            const password = elements.loginPassword.value;
+            
+            try {
+                await window.firebaseAuth.signInWithEmailAndPassword(email, password);
+                hideAuthModal();
+                showToast('Signed in successfully', 'success');
+            } catch (error) {
+                showAuthError(error.message);
+            }
+        });
+
+        // Register form
+        elements.registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = elements.registerName.value;
+            const email = elements.registerEmail.value;
+            const password = elements.registerPassword.value;
+            
+            try {
+                const result = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
+                await window.firebaseAuth.updateProfile(result.user, { displayName: name });
+                hideAuthModal();
+                showToast('Account created successfully', 'success');
+            } catch (error) {
+                showAuthError(error.message);
+            }
+        });
+
+        // Google auth
+        elements.googleLoginBtn.addEventListener('click', async () => {
+            try {
+                await window.firebaseAuth.signInWithGoogle();
+                hideAuthModal();
+                showToast('Signed in with Google', 'success');
+            } catch (error) {
+                showAuthError(error.message);
+            }
+        });
+
+        elements.googleRegisterBtn.addEventListener('click', async () => {
+            try {
+                await window.firebaseAuth.signInWithGoogle();
+                hideAuthModal();
+                showToast('Signed in with Google', 'success');
+            } catch (error) {
+                showAuthError(error.message);
+            }
+        });
+
+        // Logout
+        elements.logoutBtn.addEventListener('click', async () => {
+            try {
+                await window.firebaseAuth.signOut();
+                showToast('Signed out', 'success');
+            } catch (error) {
+                showToast('Error signing out', 'error');
+            }
+        });
+
+        // Settings
+        elements.settingsBtn.addEventListener('click', () => {
+            elements.settingsModal.classList.remove('hidden');
+        });
+
+        elements.closeSettings.addEventListener('click', () => {
+            elements.settingsModal.classList.add('hidden');
+        });
+
+        // Theme selection
+        document.querySelectorAll('.theme-option').forEach(btn => {
+            btn.addEventListener('click', () => {
+                applyTheme(btn.dataset.theme);
+            });
+        });
+
+        // Advanced mode
+        elements.advancedMode.addEventListener('change', () => {
+            state.advancedMode = elements.advancedMode.checked;
+            elements.editMetadataBtn.classList.toggle('hidden', !state.advancedMode);
+            saveState();
+            showToast(state.advancedMode ? 'Advanced mode enabled' : 'Advanced mode disabled');
+        });
+
+        // PWA Install
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            elements.pwaSection.classList.remove('hidden');
+        });
+
+        elements.pwaInstallBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const result = await deferredPrompt.userChoice;
+                if (result.outcome === 'accepted') {
+                    showToast('App installed successfully', 'success');
+                }
+                deferredPrompt = null;
+            } else {
+                showToast('App is already installed or not supported', 'info');
+            }
+        });
+
+        // Version info
+        elements.versionNumber.textContent = APP_VERSION;
+
+        elements.checkUpdatesBtn.addEventListener('click', () => {
+            showToast('You are using the latest version', 'success');
+        });
+
+        // Changelog
+        elements.viewChangelogBtn.addEventListener('click', () => {
+            elements.settingsModal.classList.add('hidden');
+            elements.changelogModal.classList.remove('hidden');
+        });
+
+        elements.closeChangelog.addEventListener('click', () => {
+            elements.changelogModal.classList.add('hidden');
+        });
+
+        // Playlist modal
+        elements.createPlaylistBtn.addEventListener('click', createPlaylist);
+
+        elements.closePlaylist.addEventListener('click', () => {
+            elements.playlistModal.classList.add('hidden');
+        });
+
+        elements.playlistForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const name = elements.playlistName.value.trim();
+            const description = elements.playlistDescription.value.trim();
+            const editId = elements.editPlaylistId.value;
+            
+            if (!name) return;
+            
+            if (editId) {
+                // Update existing playlist
+                const playlist = state.playlists.find(p => p.id === editId);
+                if (playlist) {
+                    playlist.name = name;
+                    playlist.description = description;
+                }
+            } else {
+                // Create new playlist
+                const newPlaylist = {
+                    id: Date.now().toString(),
+                    name,
+                    description,
+                    songs: [...state.queue],
+                    createdAt: new Date().toISOString()
+                };
+                state.playlists.push(newPlaylist);
+            }
+            
+            saveState();
+            renderPlaylists();
+            elements.playlistModal.classList.add('hidden');
+            showToast(editId ? 'Playlist updated' : 'Playlist created', 'success');
+        });
+
+        // Metadata editor
+        elements.editMetadataBtn.addEventListener('click', () => {
+            const song = state.queue[state.currentIndex];
+            if (!song) return;
+            
+            elements.metaTitle.value = song.title || '';
+            elements.metaArtist.value = song.artist || '';
+            elements.metaAlbum.value = song.album || '';
+            elements.metaGenre.value = song.genre || '';
+            elements.metaYear.value = song.year || '';
+            elements.editSongId.value = song.id;
+            elements.albumArtFileName.textContent = 'Choose image...';
+            pendingAlbumArtFile = null;
+            elements.metadataModal.classList.remove('hidden');
+        });
+
+        elements.closeMetadata.addEventListener('click', () => {
+            elements.metadataModal.classList.add('hidden');
+            pendingAlbumArtFile = null;
+        });
+
+        // Album art selection
+        elements.selectAlbumArtBtn.addEventListener('click', () => {
+            elements.metaAlbumArt.click();
+        });
+
+        elements.metaAlbumArt.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                pendingAlbumArtFile = file;
+                elements.albumArtFileName.textContent = file.name;
+            }
+        });
+
+        elements.clearAlbumArtBtn.addEventListener('click', () => {
+            pendingAlbumArtFile = null;
+            elements.metaAlbumArt.value = '';
+            elements.albumArtFileName.textContent = 'Choose image...';
+        });
+
+        elements.metadataForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const songId = parseInt(elements.editSongId.value);
+            const song = state.queue.find(s => s.id === songId);
+            
+            if (song) {
+                song.title = elements.metaTitle.value || song.title;
+                song.artist = elements.metaArtist.value || song.artist;
+                song.album = elements.metaAlbum.value;
+                song.genre = elements.metaGenre.value;
+                song.year = elements.metaYear.value;
+                
+                // Update album art if a new one was selected
+                if (pendingAlbumArtFile) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        song.albumArtUrl = e.target.result;
+                        song.pendingAlbumArtData = pendingAlbumArtFile;
+                        updateNowPlaying();
+                    };
+                    reader.readAsDataURL(pendingAlbumArtFile);
+                }
+                
+                updateNowPlaying();
+                elements.metadataModal.classList.add('hidden');
+                pendingAlbumArtFile = null;
+                showToast('Metadata updated', 'success');
+            }
+        });
+
+        // Download with metadata
+        elements.downloadWithMetadataBtn.addEventListener('click', async () => {
+            const songId = parseInt(elements.editSongId.value);
+            const song = state.queue.find(s => s.id === songId);
+            
+            if (!song || !song.audioUrl) {
+                showToast('No audio file to download', 'error');
+                return;
+            }
+
+            showToast('Preparing download...', 'info');
+
+            try {
+                // Get the current metadata values from the form
+                const metadata = {
+                    title: elements.metaTitle.value || song.title,
+                    artist: elements.metaArtist.value || song.artist,
+                    album: elements.metaAlbum.value || song.album || '',
+                    genre: elements.metaGenre.value || song.genre || '',
+                    year: elements.metaYear.value || song.year || ''
+                };
+
+                // Fetch the original audio file
+                let audioBlob;
+                if (song.audioUrl.startsWith('blob:')) {
+                    // It's a local blob URL, fetch it
+                    const response = await fetch(song.audioUrl);
+                    audioBlob = await response.blob();
+                } else {
+                    // It's a remote URL, fetch it
+                    const response = await fetch(song.audioUrl);
+                    if (!response.ok) throw new Error('Failed to fetch audio file');
+                    audioBlob = await response.blob();
+                }
+
+                // Determine file extension
+                const isVideo = song.isVideo;
+                const extension = isVideo ? 'mp4' : 'mp3';
+                const mimeType = isVideo ? 'video/mp4' : 'audio/mpeg';
+
+                // For MP3 files, we can try to embed ID3 tags
+                // For simplicity, we'll create a download with the metadata in the filename
+                // and provide the original file (full ID3 tag embedding would require a library like id3.js)
+                
+                // Create a sanitized filename with metadata
+                const sanitize = (str) => str.replace(/[<>:"/\\|?*]/g, '_').trim();
+                const filename = `${sanitize(metadata.artist)} - ${sanitize(metadata.title)}.${extension}`;
+
+                // For MP3 files, attempt to write ID3v2 tags (simplified approach)
+                let downloadBlob = audioBlob;
+                
+                if (!isVideo && audioBlob.type === 'audio/mpeg') {
+                    // Try to add ID3v2 tags to MP3
+                    try {
+                        downloadBlob = await addID3Tags(audioBlob, metadata, pendingAlbumArtFile || song.pendingAlbumArtData);
+                    } catch (tagError) {
+                        console.log('Could not add ID3 tags, downloading original:', tagError);
+                    }
+                }
+
+                // Create download link
+                const url = URL.createObjectURL(downloadBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast(`Downloaded: ${filename}`, 'success');
+            } catch (error) {
+                console.error('Download error:', error);
+                showToast('Failed to download file', 'error');
+            }
+        });
+
+        // Function to add ID3v2 tags to MP3 files
+        async function addID3Tags(audioBlob, metadata, albumArtFile) {
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            
+            // Check if file already has ID3v2 tag
+            const hasID3v2 = uint8Array[0] === 0x49 && uint8Array[1] === 0x44 && uint8Array[2] === 0x33;
+            
+            // Create ID3v2.3 header and frames
+            const textEncoder = new TextEncoder();
+            const frames = [];
+            
+            // Helper to create text frame
+            function createTextFrame(id, text) {
+                if (!text) return null;
+                const idBytes = textEncoder.encode(id);
+                const textBytes = textEncoder.encode(text);
+                // Frame: ID(4) + Size(4) + Flags(2) + Encoding(1) + Text
+                const frameSize = 1 + textBytes.length;
+                const frame = new Uint8Array(10 + frameSize);
+                frame.set(idBytes, 0);
+                // Size (big endian, excluding header)
+                frame[4] = (frameSize >> 24) & 0xFF;
+                frame[5] = (frameSize >> 16) & 0xFF;
+                frame[6] = (frameSize >> 8) & 0xFF;
+                frame[7] = frameSize & 0xFF;
+                // Flags
+                frame[8] = 0;
+                frame[9] = 0;
+                // Encoding (0 = ISO-8859-1)
+                frame[10] = 0;
+                // Text
+                frame.set(textBytes, 11);
+                return frame;
+            }
+            
+            // Add text frames
+            const titleFrame = createTextFrame('TIT2', metadata.title);
+            const artistFrame = createTextFrame('TPE1', metadata.artist);
+            const albumFrame = createTextFrame('TALB', metadata.album);
+            const genreFrame = createTextFrame('TCON', metadata.genre);
+            const yearFrame = createTextFrame('TYER', metadata.year);
+            
+            if (titleFrame) frames.push(titleFrame);
+            if (artistFrame) frames.push(artistFrame);
+            if (albumFrame) frames.push(albumFrame);
+            if (genreFrame) frames.push(genreFrame);
+            if (yearFrame) frames.push(yearFrame);
+            
+            // Add album art if provided
+            if (albumArtFile) {
+                try {
+                    const artBuffer = await albumArtFile.arrayBuffer();
+                    const artBytes = new Uint8Array(artBuffer);
+                    const mimeType = albumArtFile.type || 'image/jpeg';
+                    const mimeBytes = textEncoder.encode(mimeType);
+                    
+                    // APIC frame structure:
+                    // Encoding(1) + MIME type + null(1) + Picture type(1) + Description + null(1) + Picture data
+                    const apicSize = 1 + mimeBytes.length + 1 + 1 + 1 + artBytes.length;
+                    const apicFrame = new Uint8Array(10 + apicSize);
+                    
+                    // Frame ID
+                    apicFrame.set(textEncoder.encode('APIC'), 0);
+                    // Size
+                    apicFrame[4] = (apicSize >> 24) & 0xFF;
+                    apicFrame[5] = (apicSize >> 16) & 0xFF;
+                    apicFrame[6] = (apicSize >> 8) & 0xFF;
+                    apicFrame[7] = apicSize & 0xFF;
+                    // Flags
+                    apicFrame[8] = 0;
+                    apicFrame[9] = 0;
+                    // Encoding
+                    apicFrame[10] = 0;
+                    // MIME type
+                    apicFrame.set(mimeBytes, 11);
+                    // Null terminator
+                    apicFrame[11 + mimeBytes.length] = 0;
+                    // Picture type (3 = front cover)
+                    apicFrame[12 + mimeBytes.length] = 3;
+                    // Description (empty) + null
+                    apicFrame[13 + mimeBytes.length] = 0;
+                    // Picture data
+                    apicFrame.set(artBytes, 14 + mimeBytes.length);
+                    
+                    frames.push(apicFrame);
+                } catch (artError) {
+                    console.log('Could not add album art:', artError);
+                }
+            }
+            
+            // Calculate total size of all frames
+            let framesSize = 0;
+            frames.forEach(f => framesSize += f.length);
+            
+            // Create ID3v2.3 header
+            const header = new Uint8Array(10);
+            header[0] = 0x49; // 'I'
+            header[1] = 0x44; // 'D'
+            header[2] = 0x33; // '3'
+            header[3] = 0x03; // Version 2.3
+            header[4] = 0x00; // Revision
+            header[5] = 0x00; // Flags
+            // Size (syncsafe integer)
+            const size = framesSize;
+            header[6] = (size >> 21) & 0x7F;
+            header[7] = (size >> 14) & 0x7F;
+            header[8] = (size >> 7) & 0x7F;
+            header[9] = size & 0x7F;
+            
+            // Combine header, frames, and original audio (skip existing ID3v2 if present)
+            let audioStart = 0;
+            if (hasID3v2) {
+                // Parse existing ID3v2 size
+                const existingSize = ((uint8Array[6] & 0x7F) << 21) |
+                                    ((uint8Array[7] & 0x7F) << 14) |
+                                    ((uint8Array[8] & 0x7F) << 7) |
+                                    (uint8Array[9] & 0x7F);
+                audioStart = 10 + existingSize;
+            }
+            
+            const audioData = uint8Array.slice(audioStart);
+            const totalSize = header.length + framesSize + audioData.length;
+            const result = new Uint8Array(totalSize);
+            
+            let offset = 0;
+            result.set(header, offset);
+            offset += header.length;
+            
+            for (const frame of frames) {
+                result.set(frame, offset);
+                offset += frame.length;
+            }
+            
+            result.set(audioData, offset);
+            
+            return new Blob([result], { type: 'audio/mpeg' });
+        }
+
+        // Close modals on backdrop click
+        [elements.authModal, elements.settingsModal, elements.changelogModal, elements.playlistModal, elements.metadataModal].forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                    pendingAlbumArtFile = null;
+                }
+            });
         });
 
         // Keyboard controls
         document.addEventListener('keydown', (e) => {
+            // Don't handle if typing in input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            const song = state.queue[state.currentIndex];
+            
             switch (e.code) {
                 case 'Space':
                     e.preventDefault();
-                    togglePlay();
+                    if (state.queue.length > 0) togglePlay();
                     break;
                 case 'ArrowRight':
+                    e.preventDefault();
                     if (e.shiftKey) {
                         playNext();
-                    } else {
-                        state.currentTime = Math.min(state.currentTime + 10, state.queue[state.currentIndex]?.duration || 0);
-                        updateProgress();
+                    } else if (song && song.audioUrl) {
+                        const player = state.isVideo ? elements.videoPlayer : elements.audioPlayer;
+                        player.currentTime = Math.min(player.currentTime + 10, song.duration || 0);
                     }
                     break;
                 case 'ArrowLeft':
+                    e.preventDefault();
                     if (e.shiftKey) {
                         playPrev();
-                    } else {
-                        state.currentTime = Math.max(state.currentTime - 10, 0);
-                        updateProgress();
+                    } else if (song && song.audioUrl) {
+                        const player = state.isVideo ? elements.videoPlayer : elements.audioPlayer;
+                        player.currentTime = Math.max(player.currentTime - 10, 0);
                     }
                     break;
                 case 'ArrowUp':
@@ -732,7 +2308,7 @@
                     elements.volumeSlider.value = newVolDown;
                     break;
                 case 'KeyS':
-                    toggleShuffle();
+                    if (!e.ctrlKey && !e.metaKey) toggleShuffle();
                     break;
                 case 'KeyR':
                     toggleRepeat();
@@ -740,19 +2316,82 @@
                 case 'KeyL':
                     toggleLike();
                     break;
+                case 'KeyM':
+                    // Mute/unmute
+                    if (state.volume > 0) {
+                        previousVolume = state.volume;
+                        updateVolume(0);
+                        elements.volumeSlider.value = 0;
+                    } else {
+                        updateVolume(previousVolume);
+                        elements.volumeSlider.value = previousVolume;
+                    }
+                    break;
             }
         });
 
-        // Extended Audio Parsing (MP3, FLAC, etc.)
-        elements.cloudBtn = document.getElementById('cloudBtn');
-
+        // File upload parsing
         function parseAudioFile(file) {
             return new Promise((resolve) => {
+                const isVideo = file.type.startsWith('video/') || file.name.match(/\.mp4$/i);
+                
+                if (isVideo) {
+                    // Handle video files
+                    const videoUrl = URL.createObjectURL(file);
+                    const tempVideo = document.createElement('video');
+                    tempVideo.src = videoUrl;
+                    
+                    tempVideo.addEventListener('loadedmetadata', () => {
+                        const { color, gradient } = generateRandomGradient();
+                        
+                        // Try to extract thumbnail from video
+                        tempVideo.currentTime = 1;
+                        tempVideo.addEventListener('seeked', () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = 400;
+                            canvas.height = 400;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(tempVideo, 0, 0, 400, 400);
+                            const thumbnailUrl = canvas.toDataURL();
+                            
+                            resolve({
+                                id: nextSongId++,
+                                title: file.name.replace(/\.(mp4|mov|webm|avi)$/i, ''),
+                                artist: 'Video File',
+                                duration: tempVideo.duration,
+                                color,
+                                gradient,
+                                audioUrl: videoUrl,
+                                albumArtUrl: thumbnailUrl,
+                                isVideo: true
+                            });
+                        }, { once: true });
+                    });
+                    
+                    tempVideo.addEventListener('error', () => {
+                        const { color, gradient } = generateRandomGradient();
+                        resolve({
+                            id: nextSongId++,
+                            title: file.name.replace(/\.(mp4|mov|webm|avi)$/i, ''),
+                            artist: 'Video File',
+                            duration: 0,
+                            color,
+                            gradient,
+                            audioUrl: videoUrl,
+                            albumArtUrl: null,
+                            isVideo: true
+                        });
+                    });
+                    
+                    return;
+                }
                 jsmediatags.read(file, {
                     onSuccess: (tag) => {
                         const tags = tag.tags;
-                        const title = tags.title || file.name.replace(/\.(mp3|flac|wav|ogg)$/i, '');
+                        const title = tags.title || file.name.replace(/\.(mp3|flac|wav|ogg|m4a)$/i, '');
                         const artist = tags.artist || 'Unknown Artist';
+                        const album = tags.album || '';
+                        const genre = tags.genre || '';
                         
                         let albumArtUrl = null;
                         if (tags.picture) {
@@ -766,37 +2405,37 @@
                         const tempAudio = new Audio(audioUrl);
                         
                         tempAudio.addEventListener('loadedmetadata', () => {
-                            const randomColors = [
-                                '#e63946', '#9d4edd', '#00b4d8', '#fb8500',
-                                '#8338ec', '#06d6a0', '#495057', '#ff006e',
-                                '#2a9d8f', '#e76f51', '#f4a261', '#264653'
-                            ];
-                            const color = randomColors[Math.floor(Math.random() * randomColors.length)];
-                            const color2 = randomColors[Math.floor(Math.random() * randomColors.length)];
+                            const { color, gradient } = generateRandomGradient();
                             
                             resolve({
                                 id: nextSongId++,
                                 title,
                                 artist,
+                                album,
+                                genre,
                                 duration: tempAudio.duration,
                                 color,
-                                gradient: `linear-gradient(135deg, ${color} 0%, ${color2} 100%)`,
+                                gradient,
                                 audioUrl,
-                                albumArtUrl
+                                albumArtUrl,
+                                isVideo: false
                             });
                         });
 
                         tempAudio.addEventListener('error', () => {
-                             // Fallback for duration fail
-                             resolve({
+                            const { color, gradient } = generateRandomGradient();
+                            resolve({
                                 id: nextSongId++,
                                 title,
                                 artist,
+                                album,
+                                genre,
                                 duration: 0,
-                                color: '#555',
-                                gradient: 'linear-gradient(135deg, #555 0%, #000 100%)',
+                                color,
+                                gradient,
                                 audioUrl,
-                                albumArtUrl
+                                albumArtUrl,
+                                isVideo: false
                             });
                         });
                     },
@@ -804,23 +2443,35 @@
                         console.log('Tag reading error:', error);
                         const audioUrl = URL.createObjectURL(file);
                         const tempAudio = new Audio(audioUrl);
+                        
                         tempAudio.addEventListener('loadedmetadata', () => {
-                            const randomColors = [
-                                '#e63946', '#9d4edd', '#00b4d8', '#fb8500',
-                                '#8338ec', '#06d6a0', '#495057', '#ff006e'
-                            ];
-                            const color = randomColors[Math.floor(Math.random() * randomColors.length)];
-                            const color2 = randomColors[Math.floor(Math.random() * randomColors.length)];
+                            const { color, gradient } = generateRandomGradient();
                             
                             resolve({
                                 id: nextSongId++,
-                                title: file.name.replace(/\.(mp3|flac|wav|ogg)$/i, ''),
+                                title: file.name.replace(/\.(mp3|flac|wav|ogg|m4a)$/i, ''),
                                 artist: 'Unknown Artist',
                                 duration: tempAudio.duration,
                                 color,
-                                gradient: `linear-gradient(135deg, ${color} 0%, ${color2} 100%)`,
+                                gradient,
                                 audioUrl,
-                                albumArtUrl: null
+                                albumArtUrl: null,
+                                isVideo: false
+                            });
+                        });
+                        
+                        tempAudio.addEventListener('error', () => {
+                            const { color, gradient } = generateRandomGradient();
+                            resolve({
+                                id: nextSongId++,
+                                title: file.name.replace(/\.(mp3|flac|wav|ogg|m4a)$/i, ''),
+                                artist: 'Unknown Artist',
+                                duration: 0,
+                                color,
+                                gradient,
+                                audioUrl,
+                                albumArtUrl: null,
+                                isVideo: false
                             });
                         });
                     }
@@ -838,36 +2489,33 @@
                 if (!response.ok) throw new Error('Failed to connect to Cloud Library');
                 
                 const data = await response.json();
-                // Filter for audio files
-                const audioFiles = data.filter(item => item.name.match(/\.(mp3|flac)$/i));
+                // Filter for audio/video files
+                const mediaFiles = data.filter(item => item.name.match(/\.(mp3|flac|mp4)$/i));
                 
-                if (audioFiles.length === 0) {
-                    alert('No music files found in the Cloud Library.');
+                if (mediaFiles.length === 0) {
+                    showToast('No music files found in Cloud Library', 'info');
                     return;
                 }
                 
                 let addedCount = 0;
-                for (const file of audioFiles) {
-                    // Check if already in queue to avoid duplicates (simple check by title)
-                    const exists = state.queue.some(s => s.title === file.name.replace(/\.(mp3|flac)$/i, ''));
+                for (const file of mediaFiles) {
+                    // Check if already in queue to avoid duplicates
+                    const exists = state.queue.some(s => s.title === file.name.replace(/\.(mp3|flac|mp4)$/i, ''));
                     if (exists) continue;
 
-                    const randomColors = [
-                        '#e63946', '#9d4edd', '#00b4d8', '#fb8500',
-                        '#8338ec', '#06d6a0', '#495057', '#ff006e'
-                    ];
-                    const color = randomColors[Math.floor(Math.random() * randomColors.length)];
-                    const color2 = randomColors[Math.floor(Math.random() * randomColors.length)];
+                    const { color, gradient } = generateRandomGradient();
+                    const isVideo = file.name.match(/\.mp4$/i);
                     
                     const song = {
                         id: nextSongId++,
-                        title: file.name.replace(/\.(mp3|flac)$/i, '').replace(/_/g, ' '),
+                        title: file.name.replace(/\.(mp3|flac|mp4)$/i, '').replace(/_/g, ' '),
                         artist: 'Cloud Library',
-                        duration: 0, // Duration will be updated upon first play/load
+                        duration: 0,
                         color,
-                        gradient: `linear-gradient(135deg, ${color} 0%, ${color2} 100%)`,
-                        audioUrl: file.download_url, // GitHub API provides the raw download URL
-                        albumArtUrl: null
+                        gradient,
+                        audioUrl: file.download_url,
+                        albumArtUrl: null,
+                        isVideo: !!isVideo
                     };
                     
                     state.queue.push(song);
@@ -876,14 +2524,14 @@
                 
                 if (addedCount > 0) {
                     renderQueue();
-                    // alert(`Added ${addedCount} songs from Cloud Library!`);
+                    showToast(`Added ${addedCount} songs from Cloud Library`, 'success');
                 } else {
-                    // alert('All songs from Cloud Library are already in the queue.');
+                    showToast('All songs from Cloud Library are already in queue', 'info');
                 }
                 
             } catch (error) {
                 console.error('Cloud load error:', error);
-                alert('Could not load Cloud Library. Check internet connection or API rate limits.');
+                showToast('Could not load Cloud Library', 'error');
             } finally {
                 elements.cloudBtn.disabled = false;
                 elements.cloudBtn.innerHTML = '<i class="fab fa-github"></i> Load Cloud Library';
@@ -901,10 +2549,12 @@
             if (files.length === 0) return;
             
             elements.uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            elements.uploadBtn.disabled = true;
 
             for (const file of files) {
-                // Check for audio type or extension
-                if (file.type.startsWith('audio/') || file.name.match(/\.(mp3|flac|wav|ogg)$/i)) {
+                // Check for audio/video type or extension
+                if (file.type.startsWith('audio/') || file.type.startsWith('video/') || 
+                    file.name.match(/\.(mp3|flac|wav|ogg|m4a|mp4|mov|webm|avi)$/i)) {
                     try {
                         const song = await parseAudioFile(file);
                         state.queue.push(song);
@@ -916,106 +2566,86 @@
 
             renderQueue();
             elements.uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Music';
+            elements.uploadBtn.disabled = false;
             e.target.value = '';
+            
+            if (files.length > 0) {
+                showToast(`Added ${files.length} file(s) to queue`, 'success');
+            }
         });
 
         // Audio player event listeners
         elements.audioPlayer.addEventListener('timeupdate', () => {
-            if (!elements.audioPlayer.paused) {
+            if (!elements.audioPlayer.paused && !state.isVideo) {
                 state.currentTime = elements.audioPlayer.currentTime;
-                const song = state.queue[state.currentIndex];
-                if (song && song.audioUrl) {
-                    updateProgress();
-                }
+                updateProgress();
             }
         });
 
         elements.audioPlayer.addEventListener('ended', () => {
-            playNext();
+            if (!state.isVideo) playNext();
         });
 
         elements.audioPlayer.addEventListener('loadedmetadata', () => {
             const song = state.queue[state.currentIndex];
-            if (song && song.audioUrl) {
+            if (song && song.audioUrl && !state.isVideo) {
                 song.duration = elements.audioPlayer.duration;
                 elements.totalTime.textContent = formatTime(song.duration);
             }
         });
 
-        // Update togglePlay to control audio element
-        const originalTogglePlay = togglePlay;
-        togglePlay = function() {
-            originalTogglePlay();
-            const song = state.queue[state.currentIndex];
-            
-            if (song && song.audioUrl) {
-                if (state.isPlaying) {
-                    elements.audioPlayer.play().catch(e => console.log('Play failed:', e));
-                } else {
-                    elements.audioPlayer.pause();
-                }
-            }
-        };
-
-        // Update volume control to affect audio element
-        const originalUpdateVolume = updateVolume;
-        updateVolume = function(value) {
-            originalUpdateVolume(value);
-            elements.audioPlayer.volume = value / 100;
-        };
-
-        // Update progress bar seeking
-        elements.progressBar.addEventListener('change', (e) => {
-            const song = state.queue[state.currentIndex];
-            if (!song) return;
-            
-            const newTime = (e.target.value / 100) * song.duration;
-            state.currentTime = newTime;
-            
-            if (song.audioUrl) {
-                elements.audioPlayer.currentTime = newTime;
-            }
-            
-            updateProgress();
-        });
-
-        // Update keyboard seek controls
-        document.addEventListener('keydown', (e) => {
-            const song = state.queue[state.currentIndex];
-            if (!song) return;
-            
-            if (e.code === 'ArrowRight' && !e.shiftKey && song.audioUrl) {
-                e.preventDefault();
-                elements.audioPlayer.currentTime = Math.min(
-                    elements.audioPlayer.currentTime + 10,
-                    song.duration
-                );
-            } else if (e.code === 'ArrowLeft' && !e.shiftKey && song.audioUrl) {
-                e.preventDefault();
-                elements.audioPlayer.currentTime = Math.max(
-                    elements.audioPlayer.currentTime - 10,
-                    0
-                );
+        // Video player event listeners
+        elements.videoPlayer.addEventListener('timeupdate', () => {
+            if (!elements.videoPlayer.paused && state.isVideo) {
+                state.currentTime = elements.videoPlayer.currentTime;
+                updateProgress();
             }
         });
 
-        // For demo songs without audio, keep simulated playback
-        setInterval(() => {
-            if (state.isPlaying) {
-                const song = state.queue[state.currentIndex];
-                if (song && !song.audioUrl) {
-                    state.currentTime += 0.1;
-                    if (state.currentTime >= song.duration) {
-                        playNext();
-                    }
-                    updateProgress();
-                }
+        elements.videoPlayer.addEventListener('ended', () => {
+            if (state.isVideo) playNext();
+        });
+
+        elements.videoPlayer.addEventListener('loadedmetadata', () => {
+            const song = state.queue[state.currentIndex];
+            if (song && song.audioUrl && state.isVideo) {
+                song.duration = elements.videoPlayer.duration;
+                elements.totalTime.textContent = formatTime(song.duration);
             }
-        }, 100);
+        });
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registered:', registration.scope);
+                    })
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+
+        // Firebase auth state listener
+        window.addEventListener('load', () => {
+            // Wait for Firebase to be ready
+            setTimeout(() => {
+                if (window.firebaseAuth) {
+                    window.firebaseAuth.onAuthStateChanged((user) => {
+                        updateUserUI(user);
+                    });
+                }
+            }, 1000);
+        });
 
         // Initialize
-        updateNowPlaying();
+        loadState();
+        applyTheme(state.theme);
+        elements.advancedMode.checked = state.advancedMode;
+        elements.volumeSlider.value = state.volume;
         updateVolume(state.volume);
+        updateNowPlaying();
     </script>
 </body>
 </html>
