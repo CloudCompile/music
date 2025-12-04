@@ -50,10 +50,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip Firebase and analytics requests
-  if (event.request.url.includes('firebase') || 
-      event.request.url.includes('google') ||
-      event.request.url.includes('analytics')) {
+  // Skip Firebase and Google API requests (more specific patterns)
+  const skipPatterns = [
+    'firebaseapp.com',
+    'firebase.com',
+    'firebasestorage.app',
+    'googleapis.com',
+    'gstatic.com',
+    'google-analytics.com',
+    'googletagmanager.com'
+  ];
+  
+  if (skipPatterns.some(pattern => event.request.url.includes(pattern))) {
     return;
   }
 

@@ -1112,6 +1112,9 @@
             }, 3000);
         }
 
+        // Global volume state for mute toggle
+        let previousVolume = 70;
+
         // Helper functions
         function formatTime(seconds) {
             if (!seconds || isNaN(seconds)) return '0:00';
@@ -1738,7 +1741,6 @@
             updateVolume(parseInt(e.target.value));
         });
 
-        let previousVolume = 70;
         elements.volumeBtn.addEventListener('click', () => {
             if (state.volume > 0) {
                 previousVolume = state.volume;
