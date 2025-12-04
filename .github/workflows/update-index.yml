@@ -1,0 +1,40 @@
+name: Update index.json
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate index.json
+        run: |
+          # Find all audio files and create index.json using jq for proper JSON escaping
+          echo '[]' > index.json
+          find . -maxdepth 1 -type f \( -name "*.mp3" -o -name "*.flac" -o -name "*.wav" -o -name "*.ogg" -o -name "*.m4a" -o -name "*.aac" \) -print0 | while IFS= read -r -d '' file; do
+            filename=$(basename "$file")
+            size=$(stat -c%s "$file")
+            jq --arg name "$filename" --argjson size "$size" '. += [{"name": $name, "size": $size}]' index.json > index.json.tmp && mv index.json.tmp index.json
+          done
+          cat index.json
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.json
+          if git diff --staged --quiet; then
+            echo "No changes to index.json"
+          else
+            git commit -m "Update index.json"
+            git push
+          fi
