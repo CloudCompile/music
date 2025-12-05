@@ -1079,7 +1079,7 @@
                     </button>
                     
                     <!-- PiP Toggle -->
-                    <button id="pipToggleBtn" class="pip-toggle text-zinc-400 hover:text-white transition control-btn" title="Picture-in-Picture">
+                    <button id="pipToggleBtn" class="pip-toggle text-zinc-400 hover:text-white transition control-btn" title="Picture-in-Picture (floats across tabs/apps)">
                         <i class="fas fa-external-link-square-alt text-lg"></i>
                     </button>
                 </div>
@@ -1194,7 +1194,8 @@
             advancedMode: false,
             theme: 'default',
             isVideo: false,
-            isPipVisible: false
+            isPipVisible: false,
+            pipWindow: null // Reference to the browser PiP window
         };
 
         // Load state from localStorage
@@ -1759,9 +1760,12 @@
             renderQueue();
             updateProgress();
             
-            // Update PiP player if visible
+            // Update PiP player if visible (in-page or browser)
             if (state.isPipVisible) {
                 updatePipPlayer();
+            }
+            if (state.pipWindow && !state.pipWindow.closed) {
+                updateBrowserPip();
             }
         }
 
@@ -1774,9 +1778,14 @@
             elements.progressBar.value = Math.min(progress, 100);
             elements.currentTime.textContent = formatTime(state.currentTime);
             
-            // Update PiP progress
-            if (state.isPipVisible) {
+            // Update in-page PiP progress
+            if (state.isPipVisible && !state.pipWindow) {
                 elements.pipProgressFill.style.width = `${Math.min(progress, 100)}%`;
+            }
+            
+            // Update browser PiP window
+            if (state.pipWindow && !state.pipWindow.closed) {
+                updateBrowserPip();
             }
         }
 
@@ -1827,28 +1836,358 @@
             }
         }
 
-        function togglePipPlayer() {
-            state.isPipVisible = !state.isPipVisible;
-            
-            if (state.isPipVisible) {
-                elements.pipPlayer.classList.remove('hidden', 'pip-slide-out');
-                elements.pipPlayer.classList.add('pip-slide-in');
-                elements.pipToggleBtn.classList.add('active');
-                updatePipPlayer();
-                showToast('Picture-in-Picture enabled');
-            } else {
-                elements.pipPlayer.classList.remove('pip-slide-in');
-                elements.pipPlayer.classList.add('pip-slide-out');
-                elements.pipToggleBtn.classList.remove('active');
-                setTimeout(() => {
-                    if (!state.isPipVisible) {
-                        elements.pipPlayer.classList.add('hidden');
+        // Browser Picture-in-Picture (Document PiP API)
+        async function openBrowserPip() {
+            // Check if Document Picture-in-Picture API is supported
+            if ('documentPictureInPicture' in window) {
+                try {
+                    // Close existing PiP window if open
+                    if (state.pipWindow && !state.pipWindow.closed) {
+                        state.pipWindow.close();
                     }
-                }, 300);
+                    
+                    // Open the Document PiP window
+                    const pipWindow = await window.documentPictureInPicture.requestWindow({
+                        width: 340,
+                        height: 240
+                    });
+                    
+                    state.pipWindow = pipWindow;
+                    state.isPipVisible = true;
+                    elements.pipToggleBtn.classList.add('active');
+                    
+                    // Copy styles to PiP window
+                    const pipStyles = `
+                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+                        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+                        
+                        * {
+                            font-family: 'Inter', sans-serif;
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
+                        
+                        body {
+                            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+                            color: white;
+                            overflow: hidden;
+                            height: 100vh;
+                            display: flex;
+                            flex-direction: column;
+                        }
+                        
+                        .pip-container {
+                            flex: 1;
+                            display: flex;
+                            flex-direction: column;
+                            padding: 12px;
+                        }
+                        
+                        .pip-header {
+                            display: flex;
+                            align-items: center;
+                            gap: 12px;
+                            margin-bottom: 12px;
+                        }
+                        
+                        .pip-album-art {
+                            width: 70px;
+                            height: 70px;
+                            border-radius: 8px;
+                            overflow: hidden;
+                            flex-shrink: 0;
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+                        }
+                        
+                        .pip-album-art img,
+                        .pip-album-art video {
+                            width: 100%;
+                            height: 100%;
+                            object-fit: cover;
+                        }
+                        
+                        .pip-info {
+                            flex: 1;
+                            min-width: 0;
+                        }
+                        
+                        .pip-title {
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: white;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            margin-bottom: 4px;
+                        }
+                        
+                        .pip-artist {
+                            font-size: 12px;
+                            color: #b3b3b3;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            margin-bottom: 2px;
+                        }
+                        
+                        .pip-album {
+                            font-size: 11px;
+                            color: #888;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            font-style: italic;
+                        }
+                        
+                        .pip-progress {
+                            height: 4px;
+                            background: rgba(255, 255, 255, 0.1);
+                            border-radius: 2px;
+                            margin-bottom: 12px;
+                            cursor: pointer;
+                        }
+                        
+                        .pip-progress-fill {
+                            height: 100%;
+                            background: linear-gradient(90deg, #1DB954, #1ed760);
+                            border-radius: 2px;
+                            transition: width 0.1s linear;
+                        }
+                        
+                        .pip-controls {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 16px;
+                        }
+                        
+                        .pip-control-btn {
+                            width: 40px;
+                            height: 40px;
+                            border-radius: 50%;
+                            border: none;
+                            background: rgba(255, 255, 255, 0.1);
+                            color: white;
+                            cursor: pointer;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            transition: all 0.15s ease;
+                            font-size: 16px;
+                        }
+                        
+                        .pip-control-btn:hover {
+                            transform: scale(1.1);
+                            background: rgba(255, 255, 255, 0.2);
+                        }
+                        
+                        .pip-control-btn.play-pause {
+                            width: 50px;
+                            height: 50px;
+                            background: #1DB954;
+                            font-size: 18px;
+                        }
+                        
+                        .pip-control-btn.play-pause:hover {
+                            background: #1ed760;
+                            transform: scale(1.08);
+                        }
+                        
+                        .pip-time {
+                            display: flex;
+                            justify-content: space-between;
+                            font-size: 10px;
+                            color: #888;
+                            margin-top: -8px;
+                            margin-bottom: 8px;
+                        }
+                        
+                        .pip-branding {
+                            font-size: 10px;
+                            color: #666;
+                            text-align: center;
+                            margin-top: auto;
+                            padding-top: 8px;
+                        }
+                        
+                        .hidden { display: none !important; }
+                    `;
+                    
+                    const styleSheet = pipWindow.document.createElement('style');
+                    styleSheet.textContent = pipStyles;
+                    pipWindow.document.head.appendChild(styleSheet);
+                    
+                    // Create PiP content
+                    const song = state.queue[state.currentIndex];
+                    const defaultAlbumArt = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23333' width='100' height='100'/%3E%3Ctext x='50' y='55' font-family='Arial' font-size='40' fill='%23666' text-anchor='middle'%3E♪%3C/text%3E%3C/svg%3E";
+                    
+                    const pipContainer = pipWindow.document.createElement('div');
+                    pipContainer.className = 'pip-container';
+                    pipContainer.innerHTML = `
+                        <div class="pip-header">
+                            <div class="pip-album-art">
+                                <img id="pipArt" src="${song?.albumArtUrl || (song ? createAlbumArt(song.gradient, song.title) : defaultAlbumArt)}" alt="Album Art">
+                                <video id="pipVid" class="hidden" muted></video>
+                            </div>
+                            <div class="pip-info">
+                                <div id="pipTitle" class="pip-title">${song?.title || 'No Track'}</div>
+                                <div id="pipArtist" class="pip-artist">${song?.artist || 'Select a song'}</div>
+                                <div id="pipAlbum" class="pip-album">${song?.album || ''}</div>
+                            </div>
+                        </div>
+                        <div class="pip-time">
+                            <span id="pipCurrentTime">${formatTime(state.currentTime)}</span>
+                            <span id="pipTotalTime">${formatTime(song?.duration || 0)}</span>
+                        </div>
+                        <div class="pip-progress" id="pipProgressBar">
+                            <div id="pipProgressFill" class="pip-progress-fill" style="width: ${song?.duration ? (state.currentTime / song.duration) * 100 : 0}%"></div>
+                        </div>
+                        <div class="pip-controls">
+                            <button id="pipPrev" class="pip-control-btn" title="Previous">
+                                <i class="fas fa-step-backward"></i>
+                            </button>
+                            <button id="pipPlay" class="pip-control-btn play-pause" title="${state.isPlaying ? 'Pause' : 'Play'}">
+                                <i class="fas fa-${state.isPlaying ? 'pause' : 'play'}"></i>
+                            </button>
+                            <button id="pipNext" class="pip-control-btn" title="Next">
+                                <i class="fas fa-step-forward"></i>
+                            </button>
+                        </div>
+                        <div class="pip-branding">CloudTunes ♪</div>
+                    `;
+                    
+                    pipWindow.document.body.appendChild(pipContainer);
+                    
+                    // Add event listeners in PiP window
+                    const pipPlayBtn = pipWindow.document.getElementById('pipPlay');
+                    const pipPrevBtn = pipWindow.document.getElementById('pipPrev');
+                    const pipNextBtn = pipWindow.document.getElementById('pipNext');
+                    const pipProgressBar = pipWindow.document.getElementById('pipProgressBar');
+                    
+                    pipPlayBtn.addEventListener('click', () => {
+                        togglePlay();
+                        pipPlayBtn.querySelector('i').className = `fas fa-${state.isPlaying ? 'pause' : 'play'}`;
+                    });
+                    
+                    pipPrevBtn.addEventListener('click', () => {
+                        playPrev();
+                        if (!state.isPlaying && state.queue.length > 0) togglePlay();
+                        pipPlayBtn.querySelector('i').className = 'fas fa-pause';
+                    });
+                    
+                    pipNextBtn.addEventListener('click', () => {
+                        playNext();
+                        if (!state.isPlaying && state.queue.length > 0) togglePlay();
+                        pipPlayBtn.querySelector('i').className = 'fas fa-pause';
+                    });
+                    
+                    // Click on progress bar to seek
+                    pipProgressBar.addEventListener('click', (e) => {
+                        const song = state.queue[state.currentIndex];
+                        if (!song || !song.duration) return;
+                        const rect = pipProgressBar.getBoundingClientRect();
+                        const percent = (e.clientX - rect.left) / rect.width;
+                        const newTime = percent * song.duration;
+                        const player = state.isVideo ? elements.videoPlayer : elements.audioPlayer;
+                        player.currentTime = newTime;
+                        state.currentTime = newTime;
+                        updateProgress();
+                    });
+                    
+                    // Handle PiP window close
+                    pipWindow.addEventListener('pagehide', () => {
+                        state.pipWindow = null;
+                        state.isPipVisible = false;
+                        elements.pipToggleBtn.classList.remove('active');
+                    });
+                    
+                    showToast('Picture-in-Picture opened - persists across tabs!', 'success');
+                    return true;
+                } catch (error) {
+                    console.error('Document PiP error:', error);
+                    // Fall through to try video PiP
+                }
+            }
+            
+            // Fallback: Try native video Picture-in-Picture for video content
+            if (state.isVideo && elements.videoPlayer.src && document.pictureInPictureEnabled) {
+                try {
+                    await elements.videoPlayer.requestPictureInPicture();
+                    state.isPipVisible = true;
+                    elements.pipToggleBtn.classList.add('active');
+                    showToast('Video Picture-in-Picture enabled', 'success');
+                    return true;
+                } catch (error) {
+                    console.error('Video PiP error:', error);
+                }
+            }
+            
+            // Last fallback: use in-page mini player
+            return false;
+        }
+        
+        async function togglePipPlayer() {
+            // If already in browser PiP, close it
+            if (state.pipWindow && !state.pipWindow.closed) {
+                state.pipWindow.close();
+                state.pipWindow = null;
+                state.isPipVisible = false;
+                elements.pipToggleBtn.classList.remove('active');
+                showToast('Picture-in-Picture closed');
+                return;
+            }
+            
+            // If video is in PiP mode, exit it
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+                state.isPipVisible = false;
+                elements.pipToggleBtn.classList.remove('active');
+                showToast('Picture-in-Picture closed');
+                return;
+            }
+            
+            // Try to open browser PiP
+            const browserPipOpened = await openBrowserPip();
+            
+            if (!browserPipOpened) {
+                // Fallback to in-page PiP player
+                state.isPipVisible = !state.isPipVisible;
+                
+                if (state.isPipVisible) {
+                    elements.pipPlayer.classList.remove('hidden', 'pip-slide-out');
+                    elements.pipPlayer.classList.add('pip-slide-in');
+                    elements.pipToggleBtn.classList.add('active');
+                    updatePipPlayer();
+                    showToast('Mini player enabled (browser PiP not supported)');
+                } else {
+                    elements.pipPlayer.classList.remove('pip-slide-in');
+                    elements.pipPlayer.classList.add('pip-slide-out');
+                    elements.pipToggleBtn.classList.remove('active');
+                    setTimeout(() => {
+                        if (!state.isPipVisible) {
+                            elements.pipPlayer.classList.add('hidden');
+                        }
+                    }, 300);
+                }
+            } else {
+                // Hide in-page PiP when browser PiP is active
+                elements.pipPlayer.classList.add('hidden');
             }
         }
 
         function closePipPlayer() {
+            // Close browser PiP if open
+            if (state.pipWindow && !state.pipWindow.closed) {
+                state.pipWindow.close();
+                state.pipWindow = null;
+            }
+            
+            // Exit video PiP if active
+            if (document.pictureInPictureElement) {
+                document.exitPictureInPicture().catch(() => {});
+            }
+            
             state.isPipVisible = false;
             elements.pipPlayer.classList.remove('pip-slide-in');
             elements.pipPlayer.classList.add('pip-slide-out');
@@ -1857,8 +2196,52 @@
                 elements.pipPlayer.classList.add('hidden');
             }, 300);
         }
+        
+        // Update browser PiP window content
+        function updateBrowserPip() {
+            if (!state.pipWindow || state.pipWindow.closed) return;
+            
+            const song = state.queue[state.currentIndex];
+            const defaultAlbumArt = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23333' width='100' height='100'/%3E%3Ctext x='50' y='55' font-family='Arial' font-size='40' fill='%23666' text-anchor='middle'%3E♪%3C/text%3E%3C/svg%3E";
+            
+            try {
+                const pipDoc = state.pipWindow.document;
+                const pipTitle = pipDoc.getElementById('pipTitle');
+                const pipArtist = pipDoc.getElementById('pipArtist');
+                const pipAlbum = pipDoc.getElementById('pipAlbum');
+                const pipArt = pipDoc.getElementById('pipArt');
+                const pipProgressFill = pipDoc.getElementById('pipProgressFill');
+                const pipPlayBtn = pipDoc.getElementById('pipPlay');
+                const pipCurrentTime = pipDoc.getElementById('pipCurrentTime');
+                const pipTotalTime = pipDoc.getElementById('pipTotalTime');
+                
+                if (song) {
+                    if (pipTitle) pipTitle.textContent = song.title;
+                    if (pipArtist) pipArtist.textContent = song.artist;
+                    if (pipAlbum) pipAlbum.textContent = song.album || '';
+                    if (pipArt) pipArt.src = song.albumArtUrl || createAlbumArt(song.gradient, song.title);
+                    if (pipCurrentTime) pipCurrentTime.textContent = formatTime(state.currentTime);
+                    if (pipTotalTime) pipTotalTime.textContent = formatTime(song.duration || 0);
+                    if (pipProgressFill && song.duration) {
+                        pipProgressFill.style.width = `${(state.currentTime / song.duration) * 100}%`;
+                    }
+                } else {
+                    if (pipTitle) pipTitle.textContent = 'No Track';
+                    if (pipArtist) pipArtist.textContent = 'Select a song';
+                    if (pipAlbum) pipAlbum.textContent = '';
+                    if (pipArt) pipArt.src = defaultAlbumArt;
+                }
+                
+                if (pipPlayBtn) {
+                    pipPlayBtn.querySelector('i').className = `fas fa-${state.isPlaying ? 'pause' : 'play'}`;
+                }
+            } catch (e) {
+                // PiP window might be closed
+                console.log('Could not update PiP:', e);
+            }
+        }
 
-        // Make PiP player draggable
+        // Make PiP player draggable (for fallback in-page PiP)
         function initPipDrag() {
             let isDragging = false;
             let startX, startY, startLeft, startTop;
@@ -1937,6 +2320,17 @@
                 isDragging = false;
             });
         }
+        
+        // Listen for video PiP events
+        elements.videoPlayer.addEventListener('enterpictureinpicture', () => {
+            state.isPipVisible = true;
+            elements.pipToggleBtn.classList.add('active');
+        });
+        
+        elements.videoPlayer.addEventListener('leavepictureinpicture', () => {
+            state.isPipVisible = false;
+            elements.pipToggleBtn.classList.remove('active');
+        });
 
         function togglePlay() {
             state.isPlaying = !state.isPlaying;
@@ -1951,6 +2345,18 @@
                 icon.className = 'fas fa-play text-xl ml-1';
                 elements.playBtn.title = 'Play';
                 pipIcon.className = 'fas fa-play';
+            }
+            
+            // Update browser PiP window play button
+            if (state.pipWindow && !state.pipWindow.closed) {
+                try {
+                    const pipPlayBtn = state.pipWindow.document.getElementById('pipPlay');
+                    if (pipPlayBtn) {
+                        pipPlayBtn.querySelector('i').className = `fas fa-${state.isPlaying ? 'pause' : 'play'}`;
+                    }
+                } catch (e) {
+                    // PiP window might be closed
+                }
             }
             
             // Control audio/video playback
