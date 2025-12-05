@@ -1492,7 +1492,9 @@
 
         // Web Audio API context and nodes for equalizer
         let audioContext = null;
-        let audioSource = null;
+        let audioSourceNode = null;
+        let videoSourceNode = null;
+        let connectedElement = null; // Track which element is connected
         let eqFilters = [];
         
         // EQ Presets (frequencies: 60Hz, 170Hz, 310Hz, 600Hz, 1kHz, 3kHz, 6kHz, 12kHz, 14kHz, 16kHz)
@@ -1534,7 +1536,7 @@
         }
         
         // Connect audio element to equalizer
-        function connectAudioToEqualizer(audioElement) {
+        function connectAudioToEqualizer(mediaElement) {
             if (!audioContext) {
                 initEqualizer();
             }
@@ -1544,22 +1546,45 @@
                 audioContext.resume();
             }
             
-            // Disconnect previous source if exists
-            if (audioSource) {
-                try {
-                    audioSource.disconnect();
-                } catch (e) {
-                    // Ignore disconnect errors
-                }
+            // Check if this element is already connected
+            if (connectedElement === mediaElement) {
+                return; // Already connected
             }
             
-            // Create new source and connect to EQ chain
+            const isAudioElement = mediaElement === elements.audioPlayer;
+            const sourceNode = isAudioElement ? audioSourceNode : videoSourceNode;
+            
+            // If we already have a source node for this element, just reconnect it
+            if (sourceNode) {
+                try {
+                    sourceNode.connect(eqFilters[0]);
+                    connectedElement = mediaElement;
+                } catch (e) {
+                    console.debug('Source already connected');
+                }
+                return;
+            }
+            
+            // Create new source node and connect to EQ chain
             try {
-                audioSource = audioContext.createMediaElementSource(audioElement);
-                audioSource.connect(eqFilters[0]);
+                const newSourceNode = audioContext.createMediaElementSource(mediaElement);
+                newSourceNode.connect(eqFilters[0]);
+                
+                if (isAudioElement) {
+                    audioSourceNode = newSourceNode;
+                } else {
+                    videoSourceNode = newSourceNode;
+                }
+                connectedElement = mediaElement;
             } catch (e) {
-                // Element might already be connected
-                console.log('Audio source already connected');
+                // Handle specific error types
+                if (e.name === 'InvalidStateError') {
+                    // Element already connected to a MediaElementSourceNode
+                    // This happens when the element was connected before
+                    console.debug('Media element already has a source node');
+                } else {
+                    console.error('Error connecting to equalizer:', e.name, e.message);
+                }
             }
         }
         
@@ -1712,13 +1737,28 @@
                     const index = parseInt(item.dataset.historyIndex);
                     const historyItem = state.history[index];
                     if (historyItem) {
-                        // Add song to queue and play
-                        const song = { ...historyItem.song, id: nextSongId++ };
-                        state.queue.push(song);
-                        state.currentIndex = state.queue.length - 1;
+                        // Check if song already exists in queue (by matching title and artist)
+                        const existingIndex = state.queue.findIndex(s => 
+                            s.title === historyItem.song.title && 
+                            s.artist === historyItem.song.artist
+                        );
+                        
+                        if (existingIndex >= 0) {
+                            // Song exists, just switch to it
+                            state.currentIndex = existingIndex;
+                        } else {
+                            // Add song to queue with a new unique ID
+                            const song = { 
+                                ...historyItem.song, 
+                                id: Date.now() + Math.random() // Use timestamp + random for uniqueness
+                            };
+                            state.queue.push(song);
+                            state.currentIndex = state.queue.length - 1;
+                        }
+                        
                         updateNowPlaying();
                         if (!state.isPlaying) togglePlay();
-                        showToast(`Playing: ${song.title}`);
+                        showToast(`Playing: ${historyItem.song.title}`);
                     }
                 });
             });
@@ -2116,11 +2156,6 @@
             
             // Show/hide metadata edit button based on advanced mode
             elements.editMetadataBtn.classList.toggle('hidden', !state.advancedMode);
-            
-            // Add to history when a new song starts playing
-            if (state.isPlaying) {
-                addToHistory(song);
-            }
             
             // Apply playback speed to players
             elements.audioPlayer.playbackRate = state.playbackSpeed;
@@ -3997,14 +4032,35 @@
             }
         });
         
-        // Initialize equalizer on first play
+        // Initialize equalizer on first play (audio)
         elements.audioPlayer.addEventListener('play', () => {
             if (!audioContext) {
                 initEqualizer();
-                connectAudioToEqualizer(elements.audioPlayer);
-                applyEQPreset(state.eqPreset);
             }
-        }, { once: true });
+            connectAudioToEqualizer(elements.audioPlayer);
+            applyEQPreset(state.eqPreset);
+            
+            // Track history on actual play start
+            const song = state.queue[state.currentIndex];
+            if (song) {
+                addToHistory(song);
+            }
+        });
+        
+        // Initialize equalizer on first play (video)
+        elements.videoPlayer.addEventListener('play', () => {
+            if (!audioContext) {
+                initEqualizer();
+            }
+            connectAudioToEqualizer(elements.videoPlayer);
+            applyEQPreset(state.eqPreset);
+            
+            // Track history on actual play start
+            const song = state.queue[state.currentIndex];
+            if (song) {
+                addToHistory(song);
+            }
+        });
 
         // Video player event listeners
         elements.videoPlayer.addEventListener('timeupdate', () => {
