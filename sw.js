@@ -239,9 +239,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Check if this is a music file request
-  const isMusic = event.request.url.match(/\.(mp3|flac|wav|ogg|m4a|mp4)$/i) || 
-                  event.request.url.includes('raw.githubusercontent.com');
+  // Check if this is a music file request based on file extension or audio/video MIME type
+  const musicExtensions = /\.(mp3|flac|wav|ogg|m4a|mp4|webm|aac)$/i;
+  const isMusic = musicExtensions.test(event.request.url) || 
+                  (event.request.destination === 'audio') ||
+                  (event.request.destination === 'video');
 
   if (isMusic) {
     event.respondWith(handleMusicRequest(event.request));
@@ -340,7 +342,7 @@ self.addEventListener('message', async (event) => {
         
         // Also cache in service worker cache
         const cache = await caches.open(MUSIC_CACHE_NAME);
-        await cache.put(url, new Response(blob.slice()));
+        await cache.put(url, new Response(blob));
         
         // Notify the client
         const clients = await self.clients.matchAll();

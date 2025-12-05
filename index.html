@@ -2017,12 +2017,17 @@
             }
         }
         
+        // Helper function to check if a URL can be persisted (not a blob URL)
+        function isPersistableUrl(url) {
+            return url && !url.startsWith('blob:') && !url.startsWith('data:');
+        }
+        
         // Save queue for offline persistence
         function saveQueueToOffline() {
             if (navigator.serviceWorker.controller && state.queue.length > 0) {
-                // Only save songs that have URLs (not blob URLs since those expire)
+                // Only save songs that have persistable URLs (not blob URLs since those expire)
                 const persistableQueue = state.queue.filter(s => 
-                    s.audioUrl && !s.audioUrl.startsWith('blob:')
+                    isPersistableUrl(s.audioUrl)
                 ).map(s => ({
                     id: s.id,
                     title: s.title,
@@ -2033,7 +2038,7 @@
                     color: s.color,
                     gradient: s.gradient,
                     audioUrl: s.audioUrl,
-                    albumArtUrl: s.albumArtUrl && !s.albumArtUrl.startsWith('blob:') ? s.albumArtUrl : null,
+                    albumArtUrl: isPersistableUrl(s.albumArtUrl) ? s.albumArtUrl : null,
                     isVideo: s.isVideo
                 }));
                 
@@ -2098,9 +2103,15 @@
                 case 'SAVED_QUEUE':
                     if (queue && queue.length > 0 && state.queue.length === 0) {
                         // Restore queue if current queue is empty
+                        // Find the highest ID in the saved queue to avoid conflicts
+                        const maxSavedId = Math.max(...queue.map(s => typeof s.id === 'number' ? s.id : 0));
+                        nextSongId = Math.max(nextSongId, maxSavedId + 1);
+                        
+                        // Preserve original IDs from saved queue
                         state.queue = queue.map(s => ({
                             ...s,
-                            id: nextSongId++
+                            // Keep original ID if it's a number, otherwise generate new one
+                            id: typeof s.id === 'number' ? s.id : nextSongId++
                         }));
                         renderQueue();
                         showToast('Queue restored from last session', 'success');
@@ -2237,7 +2248,7 @@
             elements.queue.innerHTML = state.queue.map((song, index) => {
                 const isDownloaded = state.offlineMusic.some(m => m.id === song.id.toString());
                 const isDownloading = state.downloadingIds.has(song.id);
-                const canDownload = song.audioUrl && !song.audioUrl.startsWith('blob:') && !isDownloaded;
+                const canDownload = isPersistableUrl(song.audioUrl) && !isDownloaded;
                 
                 return `
                 <div class="queue-item flex items-center gap-3 p-3 rounded-lg cursor-pointer ${index === state.currentIndex ? 'active' : ''}" 
