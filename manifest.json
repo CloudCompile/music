@@ -1,7 +1,7 @@
 {
   "name": "CloudTunes Player",
   "short_name": "CloudTunes",
-  "description": "A full-featured web music player with glassmorphic design",
+  "description": "A full-featured web music player with glassmorphic design and offline support",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#121212",
@@ -29,6 +29,34 @@
       "short_name": "Play",
       "description": "Start playing music",
       "url": "/?action=play"
+    },
+    {
+      "name": "Downloads",
+      "short_name": "Offline",
+      "description": "View offline downloads",
+      "url": "/?view=downloads"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "audio",
+          "accept": ["audio/*", "video/mp4"]
+        }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "audio/*": [".mp3", ".flac", ".wav", ".ogg", ".m4a"],
+        "video/mp4": [".mp4"]
+      }
     }
   ]
 }

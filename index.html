@@ -566,6 +566,12 @@
     </style>
 </head>
 <body class="bg-gradient-to-b from-zinc-900 to-black min-h-screen text-white">
+    <!-- Offline Indicator -->
+    <div id="offlineIndicator" class="fixed top-0 left-0 right-0 bg-amber-600 text-white text-center py-2 z-50 hidden transition-all duration-300">
+        <i class="fas fa-wifi-slash mr-2"></i>
+        <span>You're offline - Playing from downloaded music</span>
+    </div>
+
     <!-- Toast Container -->
     <div id="toastContainer" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2"></div>
 
@@ -780,7 +786,22 @@
             <div class="space-y-6">
                 <div class="border-l-2 border-green-500 pl-4">
                     <div class="flex items-center gap-2 mb-2">
-                        <span class="font-mono text-green-500">v1.1.0</span>
+                        <span class="font-mono text-green-500">v1.2.0</span>
+                        <span class="text-zinc-400 text-sm">- Offline Mode Update</span>
+                    </div>
+                    <ul class="text-sm text-zinc-300 space-y-1">
+                        <li>• <strong>Download for Offline</strong> - Save songs for offline playback</li>
+                        <li>• <strong>Offline Indicator</strong> - Visual notification when you're offline</li>
+                        <li>• <strong>Downloads View</strong> - Manage your offline music library</li>
+                        <li>• <strong>Queue Persistence</strong> - Queue automatically saved and restored</li>
+                        <li>• <strong>Background Sync</strong> - Better offline/online transition handling</li>
+                        <li>• Improved service worker with IndexedDB storage</li>
+                    </ul>
+                </div>
+                
+                <div class="border-l-2 border-zinc-600 pl-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="font-mono text-zinc-400">v1.1.0</span>
                         <span class="text-zinc-400 text-sm">- Feature Update</span>
                     </div>
                     <ul class="text-sm text-zinc-300 space-y-1">
@@ -955,6 +976,11 @@
                     <i class="fas fa-heart w-5"></i>
                     <span>Favorites</span>
                 </button>
+                <button class="nav-item w-full text-left p-3 rounded-lg flex items-center gap-3" data-view="downloads">
+                    <i class="fas fa-download w-5"></i>
+                    <span>Downloads</span>
+                    <span id="offlineCount" class="ml-auto text-xs bg-green-500 text-white rounded-full px-2 py-0.5 hidden">0</span>
+                </button>
                 <button class="nav-item w-full text-left p-3 rounded-lg flex items-center gap-3" data-view="history">
                     <i class="fas fa-history w-5"></i>
                     <span>History</span>
@@ -1004,6 +1030,28 @@
                 <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Favorites</h2>
                 <div id="favorites" class="space-y-1">
                     <!-- Favorites will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Downloads View (Offline Music) -->
+            <div id="downloadsView" class="view-panel flex-1 overflow-y-auto hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Downloads</h2>
+                    <button id="clearDownloadsBtn" class="text-zinc-400 hover:text-red-400 text-sm" title="Clear All Downloads">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <div id="offlineIndicatorSmall" class="mb-3 p-2 rounded-lg bg-amber-600/20 text-amber-400 text-xs hidden">
+                    <i class="fas fa-wifi-slash mr-1"></i>
+                    Offline mode - Only downloaded songs are available
+                </div>
+                <div id="downloads" class="space-y-1">
+                    <!-- Downloaded songs will be inserted here -->
+                    <div id="emptyDownloads" class="text-center py-8 text-zinc-500">
+                        <i class="fas fa-download text-4xl mb-3 opacity-50"></i>
+                        <p>No downloaded songs yet</p>
+                        <p class="text-sm mt-1">Download songs for offline playback</p>
+                    </div>
                 </div>
             </div>
 
@@ -1263,7 +1311,7 @@
 
     <script>
         // App Version
-        const APP_VERSION = 'v1.1.0';
+        const APP_VERSION = 'v1.2.0';
 
         // No demo songs - start with empty queue
         const songs = [];
@@ -1289,7 +1337,11 @@
             playbackSpeed: 1,
             sleepTimer: null, // { endTime: timestamp, timerId: number } or null
             eqPreset: 'flat',
-            history: [] // Recently played songs [{ song, playedAt }]
+            history: [], // Recently played songs [{ song, playedAt }]
+            // Offline features
+            isOnline: navigator.onLine,
+            offlineMusic: [], // List of downloaded songs metadata
+            downloadingIds: new Set() // Songs currently being downloaded
         };
 
         // Load state from localStorage
@@ -1431,6 +1483,14 @@
             historyContainer: document.getElementById('history'),
             clearHistoryBtn: document.getElementById('clearHistoryBtn'),
             toastContainer: document.getElementById('toastContainer'),
+            // Downloads/Offline views
+            downloadsView: document.getElementById('downloadsView'),
+            downloadsContainer: document.getElementById('downloads'),
+            emptyDownloads: document.getElementById('emptyDownloads'),
+            clearDownloadsBtn: document.getElementById('clearDownloadsBtn'),
+            offlineIndicator: document.getElementById('offlineIndicator'),
+            offlineIndicatorSmall: document.getElementById('offlineIndicatorSmall'),
+            offlineCount: document.getElementById('offlineCount'),
             // PiP elements
             pipPlayer: document.getElementById('pipPlayer'),
             pipClose: document.getElementById('pipClose'),
@@ -1774,6 +1834,313 @@
             return date.toLocaleDateString();
         }
 
+        // ==================== OFFLINE FUNCTIONALITY ====================
+        
+        // Render Downloads (Offline Music) view
+        function renderDownloads() {
+            if (!elements.downloadsContainer) return;
+            
+            // Update offline indicator
+            if (elements.offlineIndicatorSmall) {
+                elements.offlineIndicatorSmall.classList.toggle('hidden', state.isOnline);
+            }
+            
+            if (state.offlineMusic.length === 0) {
+                elements.downloadsContainer.innerHTML = `
+                    <div class="text-center py-8 text-zinc-500">
+                        <i class="fas fa-download text-4xl mb-3 opacity-50"></i>
+                        <p>No downloaded songs yet</p>
+                        <p class="text-sm mt-1">Download songs for offline playback</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            elements.downloadsContainer.innerHTML = state.offlineMusic.map((item, index) => {
+                const metadata = item.metadata || {};
+                const downloadedAt = new Date(item.downloadedAt);
+                
+                return `
+                    <div class="queue-item p-2 rounded-lg flex items-center gap-3" data-offline-id="${item.id}">
+                        <div class="w-10 h-10 rounded flex-shrink-0 overflow-hidden bg-zinc-700">
+                            ${metadata.albumArtUrl ? `<img src="${metadata.albumArtUrl}" class="w-full h-full object-cover">` : '<div class="w-full h-full flex items-center justify-center"><i class="fas fa-music text-zinc-500"></i></div>'}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium truncate text-sm">${metadata.title || 'Unknown'}</p>
+                            <p class="text-xs text-zinc-400 truncate">${metadata.artist || 'Unknown Artist'}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="play-offline-btn text-green-500 hover:text-green-400 p-1" title="Play">
+                                <i class="fas fa-play"></i>
+                            </button>
+                            <button class="delete-offline-btn text-zinc-400 hover:text-red-400 p-1" title="Delete">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add click handlers
+            elements.downloadsContainer.querySelectorAll('.queue-item').forEach(item => {
+                const offlineId = item.dataset.offlineId;
+                
+                item.querySelector('.play-offline-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    playOfflineMusic(offlineId);
+                });
+                
+                item.querySelector('.delete-offline-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteOfflineMusic(offlineId);
+                });
+            });
+            
+            // Update offline count badge
+            updateOfflineCount();
+        }
+        
+        // Update the offline count badge
+        function updateOfflineCount() {
+            if (elements.offlineCount) {
+                if (state.offlineMusic.length > 0) {
+                    elements.offlineCount.textContent = state.offlineMusic.length;
+                    elements.offlineCount.classList.remove('hidden');
+                } else {
+                    elements.offlineCount.classList.add('hidden');
+                }
+            }
+        }
+        
+        // Download a song for offline playback
+        function downloadForOffline(song) {
+            if (!song || !song.audioUrl) {
+                showToast('No audio URL to download', 'error');
+                return;
+            }
+            
+            // Check if already downloaded
+            if (state.offlineMusic.some(m => m.id === song.id.toString())) {
+                showToast('Already downloaded for offline', 'info');
+                return;
+            }
+            
+            // Check if already downloading
+            if (state.downloadingIds.has(song.id)) {
+                showToast('Already downloading...', 'info');
+                return;
+            }
+            
+            state.downloadingIds.add(song.id);
+            showToast(`Downloading "${song.title}"...`, 'info');
+            
+            // Send message to service worker to download
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'DOWNLOAD_MUSIC',
+                    id: song.id.toString(),
+                    url: song.audioUrl,
+                    metadata: {
+                        title: song.title,
+                        artist: song.artist,
+                        album: song.album,
+                        albumArtUrl: song.albumArtUrl,
+                        duration: song.duration,
+                        isVideo: song.isVideo
+                    }
+                });
+            } else {
+                showToast('Service worker not available', 'error');
+                state.downloadingIds.delete(song.id);
+            }
+        }
+        
+        // Play offline music
+        async function playOfflineMusic(offlineId) {
+            const offlineItem = state.offlineMusic.find(m => m.id === offlineId);
+            if (!offlineItem) {
+                showToast('Offline music not found', 'error');
+                return;
+            }
+            
+            // Request the blob from service worker
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'GET_OFFLINE_BLOB',
+                    id: offlineId
+                });
+            }
+        }
+        
+        // Delete offline music
+        function deleteOfflineMusic(offlineId) {
+            const offlineItem = state.offlineMusic.find(m => m.id === offlineId);
+            if (!offlineItem) return;
+            
+            if (confirm(`Delete "${offlineItem.metadata?.title || 'this song'}" from offline storage?`)) {
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'DELETE_OFFLINE_MUSIC',
+                        id: offlineId,
+                        url: offlineItem.metadata?.audioUrl
+                    });
+                }
+            }
+        }
+        
+        // Clear all offline music
+        function clearAllDownloads() {
+            if (state.offlineMusic.length === 0) return;
+            
+            if (confirm('Delete all downloaded music?')) {
+                state.offlineMusic.forEach(item => {
+                    if (navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                            type: 'DELETE_OFFLINE_MUSIC',
+                            id: item.id,
+                            url: item.metadata?.audioUrl
+                        });
+                    }
+                });
+                state.offlineMusic = [];
+                renderDownloads();
+                showToast('All downloads cleared', 'success');
+            }
+        }
+        
+        // Request offline music list from service worker
+        function requestOfflineMusicList() {
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'GET_OFFLINE_MUSIC'
+                });
+            }
+        }
+        
+        // Save queue for offline persistence
+        function saveQueueToOffline() {
+            if (navigator.serviceWorker.controller && state.queue.length > 0) {
+                // Only save songs that have URLs (not blob URLs since those expire)
+                const persistableQueue = state.queue.filter(s => 
+                    s.audioUrl && !s.audioUrl.startsWith('blob:')
+                ).map(s => ({
+                    id: s.id,
+                    title: s.title,
+                    artist: s.artist,
+                    album: s.album,
+                    genre: s.genre,
+                    duration: s.duration,
+                    color: s.color,
+                    gradient: s.gradient,
+                    audioUrl: s.audioUrl,
+                    albumArtUrl: s.albumArtUrl && !s.albumArtUrl.startsWith('blob:') ? s.albumArtUrl : null,
+                    isVideo: s.isVideo
+                }));
+                
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'SAVE_QUEUE',
+                    queue: persistableQueue
+                });
+            }
+        }
+        
+        // Handle online/offline status changes
+        function updateOnlineStatus() {
+            state.isOnline = navigator.onLine;
+            
+            if (elements.offlineIndicator) {
+                elements.offlineIndicator.classList.toggle('hidden', state.isOnline);
+            }
+            
+            if (elements.offlineIndicatorSmall) {
+                elements.offlineIndicatorSmall.classList.toggle('hidden', state.isOnline);
+            }
+            
+            if (state.isOnline) {
+                showToast('You\'re back online', 'success');
+            } else {
+                showToast('You\'re offline - Playing from downloads', 'info');
+            }
+        }
+        
+        // Listen for service worker messages
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            const { type, id, success, music, queue, blob, metadata, error } = event.data;
+            
+            switch (type) {
+                case 'DOWNLOAD_COMPLETE':
+                    state.downloadingIds.delete(id);
+                    if (success) {
+                        showToast('Download complete!', 'success');
+                        requestOfflineMusicList();
+                    } else {
+                        showToast(`Download failed: ${error || 'Unknown error'}`, 'error');
+                    }
+                    break;
+                    
+                case 'DELETE_COMPLETE':
+                    if (success) {
+                        state.offlineMusic = state.offlineMusic.filter(m => m.id !== id);
+                        renderDownloads();
+                        showToast('Deleted from offline storage', 'success');
+                    }
+                    break;
+                    
+                case 'OFFLINE_MUSIC_LIST':
+                    state.offlineMusic = music || [];
+                    updateOfflineCount();
+                    // Re-render downloads view if visible
+                    if (!elements.downloadsView.classList.contains('hidden')) {
+                        renderDownloads();
+                    }
+                    break;
+                    
+                case 'SAVED_QUEUE':
+                    if (queue && queue.length > 0 && state.queue.length === 0) {
+                        // Restore queue if current queue is empty
+                        state.queue = queue.map(s => ({
+                            ...s,
+                            id: nextSongId++
+                        }));
+                        renderQueue();
+                        showToast('Queue restored from last session', 'success');
+                    }
+                    break;
+                    
+                case 'OFFLINE_BLOB':
+                    if (blob && metadata) {
+                        // Create a blob URL and add to queue
+                        const blobUrl = URL.createObjectURL(blob);
+                        const song = {
+                            id: nextSongId++,
+                            title: metadata.title || 'Unknown',
+                            artist: metadata.artist || 'Unknown Artist',
+                            album: metadata.album || '',
+                            duration: metadata.duration || 0,
+                            color: generateRandomGradient().color,
+                            gradient: generateRandomGradient().gradient,
+                            audioUrl: blobUrl,
+                            albumArtUrl: metadata.albumArtUrl,
+                            isVideo: metadata.isVideo || false,
+                            isOffline: true
+                        };
+                        
+                        state.queue.push(song);
+                        state.currentIndex = state.queue.length - 1;
+                        updateNowPlaying();
+                        if (!state.isPlaying) togglePlay();
+                        showToast(`Playing: ${song.title}`, 'success');
+                    }
+                    break;
+            }
+        });
+        
+        // Online/offline event listeners
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        
+        // ==================== END OFFLINE FUNCTIONALITY ====================
+
         // Helper functions
         function formatTime(seconds) {
             if (!seconds || isNaN(seconds)) return '0:00';
@@ -1867,7 +2234,12 @@
                 return;
             }
 
-            elements.queue.innerHTML = state.queue.map((song, index) => `
+            elements.queue.innerHTML = state.queue.map((song, index) => {
+                const isDownloaded = state.offlineMusic.some(m => m.id === song.id.toString());
+                const isDownloading = state.downloadingIds.has(song.id);
+                const canDownload = song.audioUrl && !song.audioUrl.startsWith('blob:') && !isDownloaded;
+                
+                return `
                 <div class="queue-item flex items-center gap-3 p-3 rounded-lg cursor-pointer ${index === state.currentIndex ? 'active' : ''}" 
                      data-index="${index}">
                     <div class="w-10 h-10 rounded flex-shrink-0 flex items-center justify-center text-white text-sm font-medium"
@@ -1880,14 +2252,24 @@
                         <p class="font-medium truncate ${index === state.currentIndex ? 'text-green-500' : 'text-white'}">${song.title}</p>
                         <p class="text-sm text-zinc-400 truncate">${song.artist}</p>
                     </div>
-                    <span class="text-xs text-zinc-500">${formatTime(song.duration)}</span>
-                    ${song.isVideo ? '<i class="fas fa-video text-xs text-zinc-500 ml-1"></i>' : ''}
+                    <div class="flex items-center gap-2">
+                        ${isDownloaded ? '<i class="fas fa-check-circle text-green-500 text-xs" title="Available offline"></i>' : ''}
+                        ${isDownloading ? '<i class="fas fa-spinner fa-spin text-yellow-500 text-xs" title="Downloading..."></i>' : ''}
+                        ${canDownload ? `<button class="download-offline-btn text-zinc-400 hover:text-green-500 text-xs" data-song-index="${index}" title="Download for offline">
+                            <i class="fas fa-download"></i>
+                        </button>` : ''}
+                        <span class="text-xs text-zinc-500">${formatTime(song.duration)}</span>
+                        ${song.isVideo ? '<i class="fas fa-video text-xs text-zinc-500 ml-1"></i>' : ''}
+                    </div>
                 </div>
-            `).join('');
+            `}).join('');
             
-            // Add click handlers
+            // Add click handlers for queue items
             document.querySelectorAll('.queue-item').forEach(item => {
-                item.addEventListener('click', () => {
+                item.addEventListener('click', (e) => {
+                    // Don't trigger if clicking download button
+                    if (e.target.closest('.download-offline-btn')) return;
+                    
                     const index = parseInt(item.dataset.index);
                     if (index !== state.currentIndex) {
                         state.currentIndex = index;
@@ -1899,6 +2281,21 @@
                     }
                 });
             });
+            
+            // Add click handlers for download buttons
+            document.querySelectorAll('.download-offline-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const songIndex = parseInt(btn.dataset.songIndex);
+                    const song = state.queue[songIndex];
+                    if (song) {
+                        downloadForOffline(song);
+                    }
+                });
+            });
+            
+            // Save queue for offline persistence
+            saveQueueToOffline();
         }
 
         // Render playlists
@@ -2077,6 +2474,8 @@
                 renderFavorites();
             } else if (viewName === 'history') {
                 renderHistory();
+            } else if (viewName === 'downloads') {
+                renderDownloads();
             }
         }
 
@@ -4128,6 +4527,30 @@
             opt.classList.toggle('text-green-500', opt.dataset.preset === state.eqPreset);
         });
         renderHistory();
+        
+        // Initialize offline features
+        updateOnlineStatus();
+        
+        // Request offline music list when service worker is ready
+        if (navigator.serviceWorker.controller) {
+            requestOfflineMusicList();
+            // Try to restore saved queue if current queue is empty
+            if (state.queue.length === 0) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'GET_SAVED_QUEUE'
+                });
+            }
+        }
+        
+        // Wait for service worker to be ready
+        navigator.serviceWorker.ready.then(() => {
+            requestOfflineMusicList();
+        });
+        
+        // Add clear downloads button handler
+        if (elements.clearDownloadsBtn) {
+            elements.clearDownloadsBtn.addEventListener('click', clearAllDownloads);
+        }
     </script>
 </body>
 </html>
