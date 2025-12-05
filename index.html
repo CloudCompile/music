@@ -356,11 +356,250 @@
         .hidden {
             display: none !important;
         }
+
+        /* Picture-in-Picture Player */
+        .pip-player {
+            position: fixed;
+            bottom: 120px;
+            right: 20px;
+            width: 320px;
+            z-index: 45;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: grab;
+        }
+
+        .pip-player:active {
+            cursor: grabbing;
+        }
+
+        .pip-player.minimized {
+            width: 200px;
+        }
+
+        .pip-player.minimized .pip-album-art {
+            width: 60px;
+            height: 60px;
+        }
+
+        .pip-player.minimized .pip-info {
+            flex: 1;
+        }
+
+        .pip-player.minimized .pip-controls {
+            display: none;
+        }
+
+        .pip-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .pip-album-art {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .pip-album-art img,
+        .pip-album-art video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .pip-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .pip-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+
+        .pip-artist {
+            font-size: 12px;
+            color: #b3b3b3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+        }
+
+        .pip-album {
+            font-size: 11px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-style: italic;
+        }
+
+        .pip-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #b3b3b3;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-size: 12px;
+        }
+
+        .pip-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .pip-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .pip-control-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .pip-control-btn:hover {
+            transform: scale(1.1);
+            color: var(--accent-primary);
+        }
+
+        .pip-control-btn.play-pause {
+            width: 44px;
+            height: 44px;
+            background: var(--accent-primary);
+        }
+
+        .pip-control-btn.play-pause:hover {
+            background: var(--accent-hover);
+            color: white;
+            transform: scale(1.08);
+        }
+
+        .pip-progress {
+            height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .pip-progress-fill {
+            height: 100%;
+            background: var(--accent-primary);
+            transition: width 0.1s linear;
+        }
+
+        /* PiP toggle button active state */
+        .pip-toggle.active {
+            color: var(--accent-primary) !important;
+        }
+
+        /* Slide in animation for PiP */
+        .pip-slide-in {
+            animation: pipSlideIn 0.3s ease-out;
+        }
+
+        @keyframes pipSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .pip-slide-out {
+            animation: pipSlideOut 0.3s ease-out forwards;
+        }
+
+        @keyframes pipSlideOut {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-b from-zinc-900 to-black min-h-screen text-white">
     <!-- Toast Container -->
     <div id="toastContainer" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2"></div>
+
+    <!-- Picture-in-Picture Player -->
+    <div id="pipPlayer" class="pip-player hidden pip-slide-in">
+        <button id="pipClose" class="pip-close" title="Close PiP">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="pip-header">
+            <div class="pip-album-art">
+                <img id="pipAlbumArt" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23333' width='100' height='100'/%3E%3Ctext x='50' y='55' font-family='Arial' font-size='40' fill='%23666' text-anchor='middle'%3E♪%3C/text%3E%3C/svg%3E" alt="Album Art">
+                <video id="pipVideo" class="hidden" muted></video>
+            </div>
+            <div class="pip-info">
+                <div id="pipTitle" class="pip-title">No Track</div>
+                <div id="pipArtist" class="pip-artist">Select a song</div>
+                <div id="pipAlbum" class="pip-album"></div>
+            </div>
+        </div>
+        <div class="pip-progress">
+            <div id="pipProgressFill" class="pip-progress-fill" style="width: 0%"></div>
+        </div>
+        <div class="pip-controls">
+            <button id="pipPrevBtn" class="pip-control-btn" title="Previous">
+                <i class="fas fa-step-backward"></i>
+            </button>
+            <button id="pipPlayBtn" class="pip-control-btn play-pause" title="Play">
+                <i class="fas fa-play"></i>
+            </button>
+            <button id="pipNextBtn" class="pip-control-btn" title="Next">
+                <i class="fas fa-step-forward"></i>
+            </button>
+        </div>
+    </div>
 
     <!-- Auth Modal -->
     <div id="authModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
@@ -786,6 +1025,7 @@
                     <div class="mb-4">
                         <h1 id="trackTitle" class="text-2xl md:text-3xl font-bold mb-2 transition-all duration-300">Select a Track</h1>
                         <p id="trackArtist" class="text-zinc-400 text-lg">Upload or browse to get started</p>
+                        <p id="trackAlbum" class="text-zinc-500 text-sm mt-1 italic"></p>
                     </div>
                     
                     <!-- Like Button -->
@@ -836,6 +1076,11 @@
                     <!-- Repeat -->
                     <button id="repeatBtn" class="text-zinc-400 hover:text-white transition control-btn" title="Repeat">
                         <i class="fas fa-redo text-lg"></i>
+                    </button>
+                    
+                    <!-- PiP Toggle -->
+                    <button id="pipToggleBtn" class="pip-toggle text-zinc-400 hover:text-white transition control-btn" title="Picture-in-Picture">
+                        <i class="fas fa-external-link-square-alt text-lg"></i>
                     </button>
                 </div>
                 
@@ -948,7 +1193,8 @@
             currentUser: null,
             advancedMode: false,
             theme: 'default',
-            isVideo: false
+            isVideo: false,
+            isPipVisible: false
         };
 
         // Load state from localStorage
@@ -991,6 +1237,7 @@
             albumArtContainer: document.getElementById('albumArtContainer'),
             trackTitle: document.getElementById('trackTitle'),
             trackArtist: document.getElementById('trackArtist'),
+            trackAlbum: document.getElementById('trackAlbum'),
             playBtn: document.getElementById('playBtn'),
             prevBtn: document.getElementById('prevBtn'),
             nextBtn: document.getElementById('nextBtn'),
@@ -1079,7 +1326,20 @@
             queueView: document.getElementById('queueView'),
             playlistsView: document.getElementById('playlistsView'),
             favoritesView: document.getElementById('favoritesView'),
-            toastContainer: document.getElementById('toastContainer')
+            toastContainer: document.getElementById('toastContainer'),
+            // PiP elements
+            pipPlayer: document.getElementById('pipPlayer'),
+            pipClose: document.getElementById('pipClose'),
+            pipAlbumArt: document.getElementById('pipAlbumArt'),
+            pipVideo: document.getElementById('pipVideo'),
+            pipTitle: document.getElementById('pipTitle'),
+            pipArtist: document.getElementById('pipArtist'),
+            pipAlbum: document.getElementById('pipAlbum'),
+            pipProgressFill: document.getElementById('pipProgressFill'),
+            pipPrevBtn: document.getElementById('pipPrevBtn'),
+            pipPlayBtn: document.getElementById('pipPlayBtn'),
+            pipNextBtn: document.getElementById('pipNextBtn'),
+            pipToggleBtn: document.getElementById('pipToggleBtn')
         };
 
         let nextSongId = songs.length + 1;
@@ -1424,6 +1684,7 @@
             if (!song) {
                 elements.trackTitle.textContent = 'Select a Track';
                 elements.trackArtist.textContent = 'Upload or browse to get started';
+                elements.trackAlbum.textContent = '';
                 elements.albumArt.src = '';
                 elements.totalTime.textContent = '0:00';
                 return;
@@ -1457,6 +1718,7 @@
             
             elements.trackTitle.textContent = song.title;
             elements.trackArtist.textContent = song.artist;
+            elements.trackAlbum.textContent = song.album || '';
             elements.totalTime.textContent = formatTime(song.duration);
             
             // Load audio/video source if it exists
@@ -1496,6 +1758,11 @@
             
             renderQueue();
             updateProgress();
+            
+            // Update PiP player if visible
+            if (state.isPipVisible) {
+                updatePipPlayer();
+            }
         }
 
         function updateProgress() {
@@ -1506,18 +1773,184 @@
             elements.progressFill.style.width = `${Math.min(progress, 100)}%`;
             elements.progressBar.value = Math.min(progress, 100);
             elements.currentTime.textContent = formatTime(state.currentTime);
+            
+            // Update PiP progress
+            if (state.isPipVisible) {
+                elements.pipProgressFill.style.width = `${Math.min(progress, 100)}%`;
+            }
+        }
+
+        // Picture-in-Picture functions
+        function updatePipPlayer() {
+            const song = state.queue[state.currentIndex];
+            const defaultAlbumArt = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23333' width='100' height='100'/%3E%3Ctext x='50' y='55' font-family='Arial' font-size='40' fill='%23666' text-anchor='middle'%3E♪%3C/text%3E%3C/svg%3E";
+            
+            if (!song) {
+                elements.pipTitle.textContent = 'No Track';
+                elements.pipArtist.textContent = 'Select a song';
+                elements.pipAlbum.textContent = '';
+                elements.pipAlbumArt.src = defaultAlbumArt;
+                return;
+            }
+            
+            elements.pipTitle.textContent = song.title;
+            elements.pipArtist.textContent = song.artist;
+            elements.pipAlbum.textContent = song.album || '';
+            
+            // Update album art
+            if (state.isVideo) {
+                elements.pipAlbumArt.classList.add('hidden');
+                elements.pipVideo.classList.remove('hidden');
+                elements.pipVideo.src = song.audioUrl;
+            } else {
+                elements.pipAlbumArt.classList.remove('hidden');
+                elements.pipVideo.classList.add('hidden');
+                if (song.albumArtUrl) {
+                    elements.pipAlbumArt.src = song.albumArtUrl;
+                } else {
+                    elements.pipAlbumArt.src = createAlbumArt(song.gradient, song.title);
+                }
+            }
+            
+            // Update play button
+            const pipIcon = elements.pipPlayBtn.querySelector('i');
+            if (state.isPlaying) {
+                pipIcon.className = 'fas fa-pause';
+            } else {
+                pipIcon.className = 'fas fa-play';
+            }
+            
+            // Update progress
+            if (song.duration) {
+                const progress = (state.currentTime / song.duration) * 100;
+                elements.pipProgressFill.style.width = `${Math.min(progress, 100)}%`;
+            }
+        }
+
+        function togglePipPlayer() {
+            state.isPipVisible = !state.isPipVisible;
+            
+            if (state.isPipVisible) {
+                elements.pipPlayer.classList.remove('hidden', 'pip-slide-out');
+                elements.pipPlayer.classList.add('pip-slide-in');
+                elements.pipToggleBtn.classList.add('active');
+                updatePipPlayer();
+                showToast('Picture-in-Picture enabled');
+            } else {
+                elements.pipPlayer.classList.remove('pip-slide-in');
+                elements.pipPlayer.classList.add('pip-slide-out');
+                elements.pipToggleBtn.classList.remove('active');
+                setTimeout(() => {
+                    if (!state.isPipVisible) {
+                        elements.pipPlayer.classList.add('hidden');
+                    }
+                }, 300);
+            }
+        }
+
+        function closePipPlayer() {
+            state.isPipVisible = false;
+            elements.pipPlayer.classList.remove('pip-slide-in');
+            elements.pipPlayer.classList.add('pip-slide-out');
+            elements.pipToggleBtn.classList.remove('active');
+            setTimeout(() => {
+                elements.pipPlayer.classList.add('hidden');
+            }, 300);
+        }
+
+        // Make PiP player draggable
+        function initPipDrag() {
+            let isDragging = false;
+            let startX, startY, startLeft, startTop;
+            
+            elements.pipPlayer.addEventListener('mousedown', (e) => {
+                if (e.target.closest('button')) return;
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                const rect = elements.pipPlayer.getBoundingClientRect();
+                startLeft = rect.left;
+                startTop = rect.top;
+                elements.pipPlayer.style.cursor = 'grabbing';
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                
+                let newLeft = startLeft + deltaX;
+                let newTop = startTop + deltaY;
+                
+                // Keep within viewport bounds
+                const pipWidth = elements.pipPlayer.offsetWidth;
+                const pipHeight = elements.pipPlayer.offsetHeight;
+                newLeft = Math.max(0, Math.min(window.innerWidth - pipWidth, newLeft));
+                newTop = Math.max(0, Math.min(window.innerHeight - pipHeight, newTop));
+                
+                elements.pipPlayer.style.right = 'auto';
+                elements.pipPlayer.style.bottom = 'auto';
+                elements.pipPlayer.style.left = `${newLeft}px`;
+                elements.pipPlayer.style.top = `${newTop}px`;
+            });
+            
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    elements.pipPlayer.style.cursor = 'grab';
+                }
+            });
+            
+            // Touch support for mobile
+            elements.pipPlayer.addEventListener('touchstart', (e) => {
+                if (e.target.closest('button')) return;
+                isDragging = true;
+                const touch = e.touches[0];
+                startX = touch.clientX;
+                startY = touch.clientY;
+                const rect = elements.pipPlayer.getBoundingClientRect();
+                startLeft = rect.left;
+                startTop = rect.top;
+            });
+            
+            document.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - startX;
+                const deltaY = touch.clientY - startY;
+                
+                let newLeft = startLeft + deltaX;
+                let newTop = startTop + deltaY;
+                
+                const pipWidth = elements.pipPlayer.offsetWidth;
+                const pipHeight = elements.pipPlayer.offsetHeight;
+                newLeft = Math.max(0, Math.min(window.innerWidth - pipWidth, newLeft));
+                newTop = Math.max(0, Math.min(window.innerHeight - pipHeight, newTop));
+                
+                elements.pipPlayer.style.right = 'auto';
+                elements.pipPlayer.style.bottom = 'auto';
+                elements.pipPlayer.style.left = `${newLeft}px`;
+                elements.pipPlayer.style.top = `${newTop}px`;
+            });
+            
+            document.addEventListener('touchend', () => {
+                isDragging = false;
+            });
         }
 
         function togglePlay() {
             state.isPlaying = !state.isPlaying;
             const icon = elements.playBtn.querySelector('i');
+            const pipIcon = elements.pipPlayBtn.querySelector('i');
             
             if (state.isPlaying) {
                 icon.className = 'fas fa-pause text-xl';
                 elements.playBtn.title = 'Pause';
+                pipIcon.className = 'fas fa-pause';
             } else {
                 icon.className = 'fas fa-play text-xl ml-1';
                 elements.playBtn.title = 'Play';
+                pipIcon.className = 'fas fa-play';
             }
             
             // Control audio/video playback
@@ -1729,6 +2162,19 @@
         elements.shuffleBtn.addEventListener('click', toggleShuffle);
         elements.repeatBtn.addEventListener('click', toggleRepeat);
         elements.likeBtn.addEventListener('click', toggleLike);
+
+        // PiP player event listeners
+        elements.pipToggleBtn.addEventListener('click', togglePipPlayer);
+        elements.pipClose.addEventListener('click', closePipPlayer);
+        elements.pipPlayBtn.addEventListener('click', togglePlay);
+        elements.pipPrevBtn.addEventListener('click', () => {
+            playPrev();
+            if (!state.isPlaying && state.queue.length > 0) togglePlay();
+        });
+        elements.pipNextBtn.addEventListener('click', () => {
+            playNext();
+            if (!state.isPlaying && state.queue.length > 0) togglePlay();
+        });
 
         elements.progressBar.addEventListener('input', (e) => {
             const song = state.queue[state.currentIndex];
@@ -2479,6 +2925,87 @@
             });
         }
 
+        // Function to fetch metadata from remote URL
+        function fetchRemoteMetadata(song) {
+            return new Promise((resolve) => {
+                if (song.isVideo) {
+                    // For video files, just get duration
+                    const tempVideo = document.createElement('video');
+                    tempVideo.crossOrigin = 'anonymous';
+                    tempVideo.src = song.audioUrl;
+                    
+                    tempVideo.addEventListener('loadedmetadata', () => {
+                        song.duration = tempVideo.duration;
+                        
+                        // Try to extract thumbnail
+                        tempVideo.currentTime = 1;
+                        tempVideo.addEventListener('seeked', () => {
+                            try {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = 400;
+                                canvas.height = 400;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(tempVideo, 0, 0, 400, 400);
+                                song.albumArtUrl = canvas.toDataURL();
+                            } catch (e) {
+                                console.log('Could not extract video thumbnail:', e);
+                            }
+                            resolve(song);
+                        }, { once: true });
+                    });
+                    
+                    tempVideo.addEventListener('error', () => resolve(song));
+                    return;
+                }
+                
+                // For audio files, try to read ID3 tags
+                jsmediatags.read(song.audioUrl, {
+                    onSuccess: (tag) => {
+                        const tags = tag.tags;
+                        if (tags.title) song.title = tags.title;
+                        if (tags.artist) song.artist = tags.artist;
+                        if (tags.album) song.album = tags.album;
+                        if (tags.genre) song.genre = tags.genre;
+                        if (tags.year) song.year = tags.year;
+                        
+                        // Extract album art
+                        if (tags.picture) {
+                            try {
+                                const { data, format } = tags.picture;
+                                const byteArray = new Uint8Array(data);
+                                const blob = new Blob([byteArray], { type: format });
+                                song.albumArtUrl = URL.createObjectURL(blob);
+                            } catch (e) {
+                                console.log('Could not extract album art:', e);
+                            }
+                        }
+                        
+                        // Get duration
+                        const tempAudio = new Audio();
+                        tempAudio.crossOrigin = 'anonymous';
+                        tempAudio.src = song.audioUrl;
+                        tempAudio.addEventListener('loadedmetadata', () => {
+                            song.duration = tempAudio.duration;
+                            resolve(song);
+                        });
+                        tempAudio.addEventListener('error', () => resolve(song));
+                    },
+                    onError: (error) => {
+                        console.log('Remote metadata read error:', error);
+                        // Still try to get duration
+                        const tempAudio = new Audio();
+                        tempAudio.crossOrigin = 'anonymous';
+                        tempAudio.src = song.audioUrl;
+                        tempAudio.addEventListener('loadedmetadata', () => {
+                            song.duration = tempAudio.duration;
+                            resolve(song);
+                        });
+                        tempAudio.addEventListener('error', () => resolve(song));
+                    }
+                });
+            });
+        }
+
         async function fetchGithubSongs() {
             elements.cloudBtn.disabled = true;
             elements.cloudBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
@@ -2498,9 +3025,12 @@
                 }
                 
                 let addedCount = 0;
+                const songsToAdd = [];
+                
                 for (const file of mediaFiles) {
                     // Check if already in queue to avoid duplicates
-                    const exists = state.queue.some(s => s.title === file.name.replace(/\.(mp3|flac|mp4)$/i, ''));
+                    const exists = state.queue.some(s => s.title === file.name.replace(/\.(mp3|flac|mp4)$/i, '').replace(/_/g, ' ') || 
+                                                        s.audioUrl === file.download_url);
                     if (exists) continue;
 
                     const { color, gradient } = generateRandomGradient();
@@ -2510,6 +3040,8 @@
                         id: nextSongId++,
                         title: file.name.replace(/\.(mp3|flac|mp4)$/i, '').replace(/_/g, ' '),
                         artist: 'Cloud Library',
+                        album: '',
+                        genre: '',
                         duration: 0,
                         color,
                         gradient,
@@ -2518,13 +3050,31 @@
                         isVideo: !!isVideo
                     };
                     
-                    state.queue.push(song);
+                    songsToAdd.push(song);
                     addedCount++;
                 }
                 
                 if (addedCount > 0) {
+                    // Add songs to queue first
+                    state.queue.push(...songsToAdd);
                     renderQueue();
-                    showToast(`Added ${addedCount} songs from Cloud Library`, 'success');
+                    showToast(`Added ${addedCount} songs. Loading metadata...`, 'success');
+                    
+                    // Fetch metadata for each song in background
+                    for (const song of songsToAdd) {
+                        fetchRemoteMetadata(song).then((updatedSong) => {
+                            // Re-render queue to show updated metadata
+                            renderQueue();
+                            // Update PiP if visible and this is the current song
+                            if (state.isPipVisible && state.queue[state.currentIndex]?.id === updatedSong.id) {
+                                updatePipPlayer();
+                            }
+                            // Update now playing if this is the current song
+                            if (state.queue[state.currentIndex]?.id === updatedSong.id) {
+                                updateNowPlaying();
+                            }
+                        });
+                    }
                 } else {
                     showToast('All songs from Cloud Library are already in queue', 'info');
                 }
@@ -2646,6 +3196,7 @@
         elements.volumeSlider.value = state.volume;
         updateVolume(state.volume);
         updateNowPlaying();
+        initPipDrag();
     </script>
 </body>
 </html>
