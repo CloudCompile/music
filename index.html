@@ -780,7 +780,21 @@
             <div class="space-y-6">
                 <div class="border-l-2 border-green-500 pl-4">
                     <div class="flex items-center gap-2 mb-2">
-                        <span class="font-mono text-green-500">v1.0.0</span>
+                        <span class="font-mono text-green-500">v1.1.0</span>
+                        <span class="text-zinc-400 text-sm">- Feature Update</span>
+                    </div>
+                    <ul class="text-sm text-zinc-300 space-y-1">
+                        <li>• Sleep Timer - set playback to pause after specified duration</li>
+                        <li>• Playback Speed control (0.5x to 2x)</li>
+                        <li>• Equalizer with presets (Flat, Bass, Treble, Vocal, Rock, Electronic, Acoustic)</li>
+                        <li>• Recently Played history with timestamps</li>
+                        <li>• Improved UI with secondary controls row</li>
+                    </ul>
+                </div>
+                
+                <div class="border-l-2 border-zinc-600 pl-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="font-mono text-zinc-400">v1.0.0</span>
                         <span class="text-zinc-400 text-sm">- Initial Release</span>
                     </div>
                     <ul class="text-sm text-zinc-300 space-y-1">
@@ -941,6 +955,10 @@
                     <i class="fas fa-heart w-5"></i>
                     <span>Favorites</span>
                 </button>
+                <button class="nav-item w-full text-left p-3 rounded-lg flex items-center gap-3" data-view="history">
+                    <i class="fas fa-history w-5"></i>
+                    <span>History</span>
+                </button>
                 <button id="settingsBtn" class="nav-item w-full text-left p-3 rounded-lg flex items-center gap-3">
                     <i class="fas fa-cog w-5"></i>
                     <span>Settings</span>
@@ -986,6 +1004,19 @@
                 <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Favorites</h2>
                 <div id="favorites" class="space-y-1">
                     <!-- Favorites will be inserted here -->
+                </div>
+            </div>
+
+            <!-- History View -->
+            <div id="historyView" class="view-panel flex-1 overflow-y-auto hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Recently Played</h2>
+                    <button id="clearHistoryBtn" class="text-zinc-400 hover:text-red-400 text-sm" title="Clear History">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <div id="history" class="space-y-1">
+                    <!-- History items will be inserted here -->
                 </div>
             </div>
             
@@ -1084,16 +1115,74 @@
                     </button>
                 </div>
                 
-                <!-- Volume Control -->
-                <div class="flex items-center justify-end gap-2 mt-4 volume-container">
-                    <button id="volumeBtn" class="text-zinc-400 hover:text-white transition">
-                        <i class="fas fa-volume-up"></i>
-                    </button>
-                    <div class="w-24 relative group">
-                        <div class="absolute inset-0 h-1 top-1/2 -translate-y-1/2 bg-zinc-600 rounded-full"></div>
-                        <div id="volumeFill" class="absolute h-1 top-1/2 -translate-y-1/2 bg-white group-hover:bg-green-500 rounded-full transition-colors" style="width: 70%"></div>
-                        <input type="range" id="volumeSlider" min="0" max="100" value="70" 
-                            class="volume-slider w-full h-1 bg-transparent appearance-none cursor-pointer relative z-10">
+                <!-- Secondary Controls Row -->
+                <div class="flex items-center justify-between mt-4">
+                    <!-- Left: Sleep Timer & Playback Speed -->
+                    <div class="flex items-center gap-3">
+                        <!-- Sleep Timer -->
+                        <div class="relative">
+                            <button id="sleepTimerBtn" class="text-zinc-400 hover:text-white transition control-btn flex items-center gap-1" title="Sleep Timer">
+                                <i class="fas fa-moon text-sm"></i>
+                                <span id="sleepTimerDisplay" class="text-xs hidden"></span>
+                            </button>
+                            <div id="sleepTimerMenu" class="hidden absolute bottom-full left-0 mb-2 glass-card rounded-lg p-2 min-w-[140px] z-50">
+                                <div class="text-xs text-zinc-400 mb-2 px-2">Sleep Timer</div>
+                                <button class="sleep-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-minutes="0">Off</button>
+                                <button class="sleep-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-minutes="15">15 minutes</button>
+                                <button class="sleep-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-minutes="30">30 minutes</button>
+                                <button class="sleep-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-minutes="45">45 minutes</button>
+                                <button class="sleep-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-minutes="60">1 hour</button>
+                                <button class="sleep-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-minutes="90">1.5 hours</button>
+                                <button class="sleep-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-minutes="120">2 hours</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Playback Speed -->
+                        <div class="relative">
+                            <button id="speedBtn" class="text-zinc-400 hover:text-white transition control-btn flex items-center gap-1" title="Playback Speed">
+                                <i class="fas fa-tachometer-alt text-sm"></i>
+                                <span id="speedDisplay" class="text-xs">1x</span>
+                            </button>
+                            <div id="speedMenu" class="hidden absolute bottom-full left-0 mb-2 glass-card rounded-lg p-2 min-w-[100px] z-50">
+                                <div class="text-xs text-zinc-400 mb-2 px-2">Speed</div>
+                                <button class="speed-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-speed="0.5">0.5x</button>
+                                <button class="speed-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-speed="0.75">0.75x</button>
+                                <button class="speed-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm active" data-speed="1">1x</button>
+                                <button class="speed-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-speed="1.25">1.25x</button>
+                                <button class="speed-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-speed="1.5">1.5x</button>
+                                <button class="speed-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-speed="2">2x</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Equalizer -->
+                        <div class="relative">
+                            <button id="eqBtn" class="text-zinc-400 hover:text-white transition control-btn" title="Equalizer">
+                                <i class="fas fa-sliders-h text-sm"></i>
+                            </button>
+                            <div id="eqMenu" class="hidden absolute bottom-full left-0 mb-2 glass-card rounded-lg p-2 min-w-[140px] z-50">
+                                <div class="text-xs text-zinc-400 mb-2 px-2">Equalizer</div>
+                                <button class="eq-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm active" data-preset="flat">Flat</button>
+                                <button class="eq-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-preset="bass">Bass Boost</button>
+                                <button class="eq-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-preset="treble">Treble Boost</button>
+                                <button class="eq-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-preset="vocal">Vocal</button>
+                                <button class="eq-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-preset="rock">Rock</button>
+                                <button class="eq-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-preset="electronic">Electronic</button>
+                                <button class="eq-option w-full text-left px-2 py-1 rounded hover:bg-white/10 text-sm" data-preset="acoustic">Acoustic</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Volume Control -->
+                    <div class="flex items-center gap-2 volume-container">
+                        <button id="volumeBtn" class="text-zinc-400 hover:text-white transition">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                        <div class="w-24 relative group">
+                            <div class="absolute inset-0 h-1 top-1/2 -translate-y-1/2 bg-zinc-600 rounded-full"></div>
+                            <div id="volumeFill" class="absolute h-1 top-1/2 -translate-y-1/2 bg-white group-hover:bg-green-500 rounded-full transition-colors" style="width: 70%"></div>
+                            <input type="range" id="volumeSlider" min="0" max="100" value="70" 
+                                class="volume-slider w-full h-1 bg-transparent appearance-none cursor-pointer relative z-10">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1174,7 +1263,7 @@
 
     <script>
         // App Version
-        const APP_VERSION = 'v1.0.0';
+        const APP_VERSION = 'v1.1.0';
 
         // No demo songs - start with empty queue
         const songs = [];
@@ -1195,7 +1284,12 @@
             theme: 'default',
             isVideo: false,
             isPipVisible: false,
-            pipWindow: null // Reference to the browser PiP window
+            pipWindow: null, // Reference to the browser PiP window
+            // New features
+            playbackSpeed: 1,
+            sleepTimer: null, // { endTime: timestamp, timerId: number } or null
+            eqPreset: 'flat',
+            history: [] // Recently played songs [{ song, playedAt }]
         };
 
         // Load state from localStorage
@@ -1209,6 +1303,9 @@
                     state.advancedMode = parsed.advancedMode || false;
                     state.theme = parsed.theme || 'default';
                     state.volume = parsed.volume || 70;
+                    state.playbackSpeed = parsed.playbackSpeed || 1;
+                    state.eqPreset = parsed.eqPreset || 'flat';
+                    state.history = parsed.history || [];
                 }
             } catch (e) {
                 console.error('Failed to load state:', e);
@@ -1223,7 +1320,10 @@
                     playlists: state.playlists,
                     advancedMode: state.advancedMode,
                     theme: state.theme,
-                    volume: state.volume
+                    volume: state.volume,
+                    playbackSpeed: state.playbackSpeed,
+                    eqPreset: state.eqPreset,
+                    history: state.history.slice(0, 50) // Keep only last 50 items
                 };
                 localStorage.setItem('cloudtunes_state', JSON.stringify(toSave));
             } catch (e) {
@@ -1327,6 +1427,9 @@
             queueView: document.getElementById('queueView'),
             playlistsView: document.getElementById('playlistsView'),
             favoritesView: document.getElementById('favoritesView'),
+            historyView: document.getElementById('historyView'),
+            historyContainer: document.getElementById('history'),
+            clearHistoryBtn: document.getElementById('clearHistoryBtn'),
             toastContainer: document.getElementById('toastContainer'),
             // PiP elements
             pipPlayer: document.getElementById('pipPlayer'),
@@ -1340,7 +1443,16 @@
             pipPrevBtn: document.getElementById('pipPrevBtn'),
             pipPlayBtn: document.getElementById('pipPlayBtn'),
             pipNextBtn: document.getElementById('pipNextBtn'),
-            pipToggleBtn: document.getElementById('pipToggleBtn')
+            pipToggleBtn: document.getElementById('pipToggleBtn'),
+            // New feature elements
+            sleepTimerBtn: document.getElementById('sleepTimerBtn'),
+            sleepTimerMenu: document.getElementById('sleepTimerMenu'),
+            sleepTimerDisplay: document.getElementById('sleepTimerDisplay'),
+            speedBtn: document.getElementById('speedBtn'),
+            speedMenu: document.getElementById('speedMenu'),
+            speedDisplay: document.getElementById('speedDisplay'),
+            eqBtn: document.getElementById('eqBtn'),
+            eqMenu: document.getElementById('eqMenu')
         };
 
         let nextSongId = songs.length + 1;
@@ -1377,6 +1489,250 @@
 
         // Global volume state for mute toggle
         let previousVolume = 70;
+
+        // Web Audio API context and nodes for equalizer
+        let audioContext = null;
+        let audioSource = null;
+        let eqFilters = [];
+        
+        // EQ Presets (frequencies: 60Hz, 170Hz, 310Hz, 600Hz, 1kHz, 3kHz, 6kHz, 12kHz, 14kHz, 16kHz)
+        const EQ_PRESETS = {
+            flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            bass: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0],
+            treble: [0, 0, 0, 0, 0, 2, 3, 4, 5, 5],
+            vocal: [-2, -1, 0, 3, 5, 4, 2, 0, -1, -2],
+            rock: [4, 3, 2, 0, -1, 0, 2, 3, 4, 4],
+            electronic: [4, 3, 0, -2, -3, 0, 2, 4, 5, 4],
+            acoustic: [3, 2, 1, 1, 2, 1, 2, 2, 3, 2]
+        };
+        
+        const EQ_FREQUENCIES = [60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000];
+        
+        // Initialize Web Audio API equalizer
+        function initEqualizer() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            // Create filters for each frequency band
+            eqFilters = EQ_FREQUENCIES.map(freq => {
+                const filter = audioContext.createBiquadFilter();
+                filter.type = 'peaking';
+                filter.frequency.value = freq;
+                filter.Q.value = 1;
+                filter.gain.value = 0;
+                return filter;
+            });
+            
+            // Connect filters in chain
+            for (let i = 0; i < eqFilters.length - 1; i++) {
+                eqFilters[i].connect(eqFilters[i + 1]);
+            }
+            
+            // Connect last filter to destination
+            eqFilters[eqFilters.length - 1].connect(audioContext.destination);
+        }
+        
+        // Connect audio element to equalizer
+        function connectAudioToEqualizer(audioElement) {
+            if (!audioContext) {
+                initEqualizer();
+            }
+            
+            // Resume context if suspended
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            // Disconnect previous source if exists
+            if (audioSource) {
+                try {
+                    audioSource.disconnect();
+                } catch (e) {
+                    // Ignore disconnect errors
+                }
+            }
+            
+            // Create new source and connect to EQ chain
+            try {
+                audioSource = audioContext.createMediaElementSource(audioElement);
+                audioSource.connect(eqFilters[0]);
+            } catch (e) {
+                // Element might already be connected
+                console.log('Audio source already connected');
+            }
+        }
+        
+        // Apply EQ preset
+        function applyEQPreset(preset) {
+            const gains = EQ_PRESETS[preset] || EQ_PRESETS.flat;
+            eqFilters.forEach((filter, i) => {
+                filter.gain.value = gains[i] || 0;
+            });
+            state.eqPreset = preset;
+            
+            // Update active state in menu
+            document.querySelectorAll('.eq-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.preset === preset);
+                opt.classList.toggle('text-green-500', opt.dataset.preset === preset);
+            });
+            
+            saveState();
+        }
+        
+        // Sleep Timer functions
+        function setSleepTimer(minutes) {
+            // Clear existing timer
+            if (state.sleepTimer && state.sleepTimer.timerId) {
+                clearTimeout(state.sleepTimer.timerId);
+                clearInterval(state.sleepTimer.displayIntervalId);
+            }
+            
+            if (minutes === 0) {
+                state.sleepTimer = null;
+                elements.sleepTimerBtn.classList.remove('text-green-500');
+                elements.sleepTimerDisplay.classList.add('hidden');
+                showToast('Sleep timer off');
+                return;
+            }
+            
+            const endTime = Date.now() + (minutes * 60 * 1000);
+            const timerId = setTimeout(() => {
+                // Pause playback
+                if (state.isPlaying) {
+                    togglePlay();
+                }
+                state.sleepTimer = null;
+                elements.sleepTimerBtn.classList.remove('text-green-500');
+                elements.sleepTimerDisplay.classList.add('hidden');
+                showToast('Sleep timer: Playback paused', 'info');
+            }, minutes * 60 * 1000);
+            
+            // Update display every second
+            const displayIntervalId = setInterval(() => {
+                if (!state.sleepTimer) {
+                    clearInterval(displayIntervalId);
+                    return;
+                }
+                const remaining = Math.max(0, state.sleepTimer.endTime - Date.now());
+                if (remaining <= 0) {
+                    clearInterval(displayIntervalId);
+                    return;
+                }
+                const mins = Math.floor(remaining / 60000);
+                const secs = Math.floor((remaining % 60000) / 1000);
+                elements.sleepTimerDisplay.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);
+            
+            state.sleepTimer = { endTime, timerId, displayIntervalId };
+            elements.sleepTimerBtn.classList.add('text-green-500');
+            elements.sleepTimerDisplay.classList.remove('hidden');
+            elements.sleepTimerDisplay.textContent = `${minutes}:00`;
+            showToast(`Sleep timer set for ${minutes} minutes`);
+        }
+        
+        // Playback Speed functions
+        function setPlaybackSpeed(speed) {
+            state.playbackSpeed = speed;
+            elements.audioPlayer.playbackRate = speed;
+            elements.videoPlayer.playbackRate = speed;
+            elements.speedDisplay.textContent = `${speed}x`;
+            
+            // Update active state in menu
+            document.querySelectorAll('.speed-option').forEach(opt => {
+                opt.classList.toggle('active', parseFloat(opt.dataset.speed) === speed);
+                opt.classList.toggle('text-green-500', parseFloat(opt.dataset.speed) === speed);
+            });
+            
+            if (speed !== 1) {
+                elements.speedBtn.classList.add('text-green-500');
+            } else {
+                elements.speedBtn.classList.remove('text-green-500');
+            }
+            
+            saveState();
+            showToast(`Playback speed: ${speed}x`);
+        }
+        
+        // History functions
+        function addToHistory(song) {
+            if (!song) return;
+            
+            // Remove duplicate if exists
+            state.history = state.history.filter(h => h.song.id !== song.id);
+            
+            // Add to beginning
+            state.history.unshift({
+                song: { ...song },
+                playedAt: new Date().toISOString()
+            });
+            
+            // Keep only last 50 items
+            state.history = state.history.slice(0, 50);
+            
+            saveState();
+            renderHistory();
+        }
+        
+        function renderHistory() {
+            if (!elements.historyContainer) return;
+            
+            if (state.history.length === 0) {
+                elements.historyContainer.innerHTML = `
+                    <div class="text-center py-8 text-zinc-500">
+                        <i class="fas fa-history text-3xl mb-2 opacity-50"></i>
+                        <p class="text-sm">No recently played songs</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            elements.historyContainer.innerHTML = state.history.map((item, index) => {
+                const song = item.song;
+                const playedAt = new Date(item.playedAt);
+                const timeAgo = getTimeAgo(playedAt);
+                
+                return `
+                    <div class="queue-item p-2 rounded-lg cursor-pointer flex items-center gap-3" data-history-index="${index}">
+                        <div class="w-10 h-10 rounded flex-shrink-0 overflow-hidden" style="background: ${song.gradient || '#333'}">
+                            ${song.albumArtUrl ? `<img src="${song.albumArtUrl}" class="w-full h-full object-cover">` : ''}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium truncate text-sm">${song.title}</p>
+                            <p class="text-xs text-zinc-400 truncate">${song.artist}</p>
+                        </div>
+                        <span class="text-xs text-zinc-500">${timeAgo}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add click handlers
+            elements.historyContainer.querySelectorAll('.queue-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const index = parseInt(item.dataset.historyIndex);
+                    const historyItem = state.history[index];
+                    if (historyItem) {
+                        // Add song to queue and play
+                        const song = { ...historyItem.song, id: nextSongId++ };
+                        state.queue.push(song);
+                        state.currentIndex = state.queue.length - 1;
+                        updateNowPlaying();
+                        if (!state.isPlaying) togglePlay();
+                        showToast(`Playing: ${song.title}`);
+                    }
+                });
+            });
+        }
+        
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            
+            if (seconds < 60) return 'Just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+            return date.toLocaleDateString();
+        }
 
         // Helper functions
         function formatTime(seconds) {
@@ -1679,6 +2035,8 @@
                 renderPlaylists();
             } else if (viewName === 'favorites') {
                 renderFavorites();
+            } else if (viewName === 'history') {
+                renderHistory();
             }
         }
 
@@ -1758,6 +2116,15 @@
             
             // Show/hide metadata edit button based on advanced mode
             elements.editMetadataBtn.classList.toggle('hidden', !state.advancedMode);
+            
+            // Add to history when a new song starts playing
+            if (state.isPlaying) {
+                addToHistory(song);
+            }
+            
+            // Apply playback speed to players
+            elements.audioPlayer.playbackRate = state.playbackSpeed;
+            elements.videoPlayer.playbackRate = state.playbackSpeed;
             
             renderQueue();
             updateProgress();
@@ -2635,6 +3002,77 @@
         elements.sidebarCollapseBtn.addEventListener('click', toggleSidebar);
         elements.sidebarExpandBtn.addEventListener('click', toggleSidebar);
         elements.sidebarToggle?.addEventListener('click', toggleSidebar);
+
+        // New feature event listeners
+        
+        // Sleep Timer
+        elements.sleepTimerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            elements.sleepTimerMenu.classList.toggle('hidden');
+            elements.speedMenu.classList.add('hidden');
+            elements.eqMenu.classList.add('hidden');
+        });
+        
+        document.querySelectorAll('.sleep-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                setSleepTimer(parseInt(opt.dataset.minutes));
+                elements.sleepTimerMenu.classList.add('hidden');
+            });
+        });
+        
+        // Playback Speed
+        elements.speedBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            elements.speedMenu.classList.toggle('hidden');
+            elements.sleepTimerMenu.classList.add('hidden');
+            elements.eqMenu.classList.add('hidden');
+        });
+        
+        document.querySelectorAll('.speed-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                setPlaybackSpeed(parseFloat(opt.dataset.speed));
+                elements.speedMenu.classList.add('hidden');
+            });
+        });
+        
+        // Equalizer
+        elements.eqBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            elements.eqMenu.classList.toggle('hidden');
+            elements.sleepTimerMenu.classList.add('hidden');
+            elements.speedMenu.classList.add('hidden');
+        });
+        
+        document.querySelectorAll('.eq-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                applyEQPreset(opt.dataset.preset);
+                elements.eqMenu.classList.add('hidden');
+            });
+        });
+        
+        // Close menus when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#sleepTimerBtn') && !e.target.closest('#sleepTimerMenu')) {
+                elements.sleepTimerMenu.classList.add('hidden');
+            }
+            if (!e.target.closest('#speedBtn') && !e.target.closest('#speedMenu')) {
+                elements.speedMenu.classList.add('hidden');
+            }
+            if (!e.target.closest('#eqBtn') && !e.target.closest('#eqMenu')) {
+                elements.eqMenu.classList.add('hidden');
+            }
+        });
+        
+        // Clear history
+        elements.clearHistoryBtn?.addEventListener('click', () => {
+            if (state.history.length === 0) return;
+            if (confirm('Clear your listening history?')) {
+                state.history = [];
+                saveState();
+                renderHistory();
+                showToast('History cleared');
+            }
+        });
 
         // Navigation
         document.querySelectorAll('.nav-item[data-view]').forEach(item => {
@@ -3558,6 +3996,15 @@
                 elements.totalTime.textContent = formatTime(song.duration);
             }
         });
+        
+        // Initialize equalizer on first play
+        elements.audioPlayer.addEventListener('play', () => {
+            if (!audioContext) {
+                initEqualizer();
+                connectAudioToEqualizer(elements.audioPlayer);
+                applyEQPreset(state.eqPreset);
+            }
+        }, { once: true });
 
         // Video player event listeners
         elements.videoPlayer.addEventListener('timeupdate', () => {
@@ -3612,6 +4059,19 @@
         updateVolume(state.volume);
         updateNowPlaying();
         initPipDrag();
+        
+        // Initialize new features from saved state
+        elements.speedDisplay.textContent = `${state.playbackSpeed}x`;
+        if (state.playbackSpeed !== 1) {
+            elements.speedBtn.classList.add('text-green-500');
+        }
+        document.querySelectorAll('.speed-option').forEach(opt => {
+            opt.classList.toggle('text-green-500', parseFloat(opt.dataset.speed) === state.playbackSpeed);
+        });
+        document.querySelectorAll('.eq-option').forEach(opt => {
+            opt.classList.toggle('text-green-500', opt.dataset.preset === state.eqPreset);
+        });
+        renderHistory();
     </script>
 </body>
 </html>
