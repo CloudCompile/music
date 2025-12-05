@@ -1346,6 +1346,8 @@
         let nextSongId = songs.length + 1;
         let deferredPrompt = null;
         let pendingAlbumArtFile = null; // Store selected album art file for metadata editing
+        let lastPipUpdate = 0; // Throttle browser PiP updates
+        const PIP_UPDATE_INTERVAL = 250; // Update PiP at most every 250ms
 
         // Toast notification
         function showToast(message, type = 'info') {
@@ -1783,9 +1785,13 @@
                 elements.pipProgressFill.style.width = `${Math.min(progress, 100)}%`;
             }
             
-            // Update browser PiP window
+            // Update browser PiP window (throttled to reduce DOM updates)
             if (state.pipWindow && !state.pipWindow.closed) {
-                updateBrowserPip();
+                const now = Date.now();
+                if (now - lastPipUpdate >= PIP_UPDATE_INTERVAL) {
+                    lastPipUpdate = now;
+                    updateBrowserPip();
+                }
             }
         }
 
@@ -2073,13 +2079,13 @@
                     pipPrevBtn.addEventListener('click', () => {
                         playPrev();
                         if (!state.isPlaying && state.queue.length > 0) togglePlay();
-                        pipPlayBtn.querySelector('i').className = 'fas fa-pause';
+                        pipPlayBtn.querySelector('i').className = `fas fa-${state.isPlaying ? 'pause' : 'play'}`;
                     });
                     
                     pipNextBtn.addEventListener('click', () => {
                         playNext();
                         if (!state.isPlaying && state.queue.length > 0) togglePlay();
-                        pipPlayBtn.querySelector('i').className = 'fas fa-pause';
+                        pipPlayBtn.querySelector('i').className = `fas fa-${state.isPlaying ? 'pause' : 'play'}`;
                     });
                     
                     // Click on progress bar to seek
@@ -2185,7 +2191,10 @@
             
             // Exit video PiP if active
             if (document.pictureInPictureElement) {
-                document.exitPictureInPicture().catch(() => {});
+                document.exitPictureInPicture().catch(e => {
+                    // Expected if PiP is already closed or not supported
+                    console.debug('Could not exit PiP:', e.message);
+                });
             }
             
             state.isPipVisible = false;
@@ -2236,8 +2245,8 @@
                     pipPlayBtn.querySelector('i').className = `fas fa-${state.isPlaying ? 'pause' : 'play'}`;
                 }
             } catch (e) {
-                // PiP window might be closed
-                console.log('Could not update PiP:', e);
+                // PiP window might be closed - this is expected behavior
+                console.debug('Could not update PiP:', e.message);
             }
         }
 
