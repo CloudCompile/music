@@ -998,11 +998,15 @@
             <div class="mb-4 space-y-3">
                 <input type="file" id="fileInput" accept="audio/*,video/mp4" multiple class="hidden">
                 <button id="uploadBtn" class="w-full btn-accent text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2">
-                    <i class="fas fa-upload"></i>
-                    <span>Upload Music</span>
+                    <i class="fas fa-file-upload"></i>
+                    <span>Upload Local Files</span>
+                </button>
+                <button id="uploadToCloudBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span>Upload to Cloud</span>
                 </button>
                 <button id="cloudBtn" class="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 px-4 rounded-lg transition flex items-center justify-center gap-2">
-                    <i class="fab fa-github"></i>
+                    <i class="fas fa-cloud-download-alt"></i>
                     <span>Load Cloud Library</span>
                 </button>
             </div>
@@ -1320,6 +1324,8 @@
         let appwriteClient = null;
         let appwriteAccount = null;
         let appwriteDatabases = null;
+        let appwriteStorage = null;
+        let appwriteBucketId = null;
         
         // Initialize Appwrite when SDK is loaded
         if (typeof initializeAppwrite === 'function') {
@@ -1328,6 +1334,8 @@
                 appwriteClient = appwrite.client;
                 appwriteAccount = appwrite.account;
                 appwriteDatabases = appwrite.databases;
+                appwriteStorage = appwrite.storage;
+                appwriteBucketId = appwrite.bucketId;
                 
                 // Ping Appwrite to verify connection on app load
                 appwriteClient.ping()
@@ -1441,6 +1449,7 @@
             audioPlayer: document.getElementById('audioPlayer'),
             videoPlayer: document.getElementById('videoPlayer'),
             cloudBtn: document.getElementById('cloudBtn'),
+            uploadToCloudBtn: document.getElementById('uploadToCloudBtn'),
             sidebar: document.getElementById('sidebar'),
             sidebarCollapseBtn: document.getElementById('sidebarCollapseBtn'),
             sidebarExpandBtn: document.getElementById('sidebarExpandBtn'),
@@ -4334,6 +4343,159 @@
             });
         }
 
+        async function uploadToCloudLibrary() {
+            if (!appwriteStorage || !appwriteBucketId) {
+                showToast('Cloud storage not available. Please check Appwrite configuration.', 'error');
+                return;
+            }
+
+            // Create a hidden file input for cloud upload
+            const cloudFileInput = document.createElement('input');
+            cloudFileInput.type = 'file';
+            cloudFileInput.accept = 'audio/*,video/mp4';
+            cloudFileInput.multiple = true;
+            cloudFileInput.style.display = 'none';
+            document.body.appendChild(cloudFileInput);
+
+            cloudFileInput.addEventListener('change', async (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+
+                elements.uploadToCloudBtn.disabled = true;
+                elements.uploadToCloudBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+                let successCount = 0;
+                let failCount = 0;
+
+                for (const file of files) {
+                    // Check for audio/video type or extension
+                    if (file.type.startsWith('audio/') || file.type.startsWith('video/') || 
+                        file.name.match(/\.(mp3|flac|wav|ogg|m4a|mp4|mov|webm|avi)$/i)) {
+                        try {
+                            // Upload file to Appwrite bucket with unique ID
+                            const fileId = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                            showToast(`Uploading ${file.name}...`, 'info');
+                            
+                            const uploadedFile = await appwriteStorage.createFile(
+                                appwriteBucketId,
+                                fileId,
+                                file
+                            );
+
+                            console.log('File uploaded:', uploadedFile);
+                            successCount++;
+                            showToast(`✓ Uploaded ${file.name}`, 'success');
+                        } catch (err) {
+                            console.error('Upload error:', err);
+                            failCount++;
+                            showToast(`✗ Failed to upload ${file.name}: ${err.message}`, 'error');
+                        }
+                    } else {
+                        failCount++;
+                        showToast(`✗ Skipped ${file.name} (unsupported format)`, 'error');
+                    }
+                }
+
+                elements.uploadToCloudBtn.disabled = false;
+                elements.uploadToCloudBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Upload to Cloud';
+                cloudFileInput.value = '';
+                document.body.removeChild(cloudFileInput);
+
+                if (successCount > 0) {
+                    showToast(`Uploaded ${successCount} file(s) to cloud library`, 'success');
+                }
+                if (failCount > 0) {
+                    showToast(`Failed to upload ${failCount} file(s)`, 'error');
+                }
+            });
+
+            cloudFileInput.click();
+        }
+
+        async function loadFromCloudLibrary() {
+            if (!appwriteStorage || !appwriteBucketId) {
+                showToast('Cloud storage not available. Please check Appwrite configuration.', 'error');
+                return;
+            }
+
+            elements.cloudBtn.disabled = true;
+            elements.cloudBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            
+            try {
+                // List files from Appwrite bucket
+                const filesList = await appwriteStorage.listFiles(appwriteBucketId);
+                
+                if (!filesList.files || filesList.files.length === 0) {
+                    showToast('No music files found in Cloud Library', 'info');
+                    return;
+                }
+                
+                let addedCount = 0;
+                const songsToAdd = [];
+                
+                for (const file of filesList.files) {
+                    // Check if already in queue to avoid duplicates
+                    const fileUrl = `${appwriteStorage.client.config.endpoint}/storage/buckets/${appwriteBucketId}/files/${file.$id}/view?project=${appwriteStorage.client.config.project}`;
+                    const exists = state.queue.some(s => s.cloudFileId === file.$id || s.audioUrl === fileUrl);
+                    if (exists) continue;
+
+                    const { color, gradient } = generateRandomGradient();
+                    const fileName = file.name || file.$id;
+                    const isVideo = fileName.match(/\.mp4$/i);
+                    
+                    const song = {
+                        id: nextSongId++,
+                        title: fileName.replace(/\.(mp3|flac|mp4|wav|ogg|m4a)$/i, '').replace(/_/g, ' ').replace(/^\d+_/, ''),
+                        artist: 'Cloud Library',
+                        album: '',
+                        genre: '',
+                        duration: 0,
+                        color,
+                        gradient,
+                        audioUrl: fileUrl,
+                        albumArtUrl: null,
+                        isVideo: !!isVideo,
+                        cloudFileId: file.$id
+                    };
+                    
+                    songsToAdd.push(song);
+                    addedCount++;
+                }
+                
+                if (addedCount > 0) {
+                    // Add songs to queue first
+                    state.queue.push(...songsToAdd);
+                    renderQueue();
+                    showToast(`Added ${addedCount} songs. Loading metadata...`, 'success');
+                    
+                    // Fetch metadata for each song in background
+                    for (const song of songsToAdd) {
+                        fetchRemoteMetadata(song).then((updatedSong) => {
+                            // Re-render queue to show updated metadata
+                            renderQueue();
+                            // Update PiP if visible and this is the current song
+                            if (state.isPipVisible && state.queue[state.currentIndex]?.id === updatedSong.id) {
+                                updatePipPlayer();
+                            }
+                            // Update now playing if this is the current song
+                            if (state.queue[state.currentIndex]?.id === updatedSong.id) {
+                                updateNowPlaying();
+                            }
+                        });
+                    }
+                } else {
+                    showToast('All songs from Cloud Library are already in queue', 'info');
+                }
+                
+            } catch (error) {
+                console.error('Cloud load error:', error);
+                showToast(`Could not load Cloud Library: ${error.message}`, 'error');
+            } finally {
+                elements.cloudBtn.disabled = false;
+                elements.cloudBtn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> Load Cloud Library';
+            }
+        }
+
         async function fetchGithubSongs() {
             elements.cloudBtn.disabled = true;
             elements.cloudBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
@@ -4412,7 +4574,7 @@
                 showToast('Could not load Cloud Library', 'error');
             } finally {
                 elements.cloudBtn.disabled = false;
-                elements.cloudBtn.innerHTML = '<i class="fab fa-github"></i> Load Cloud Library';
+                elements.cloudBtn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> Load Cloud Library';
             }
         }
 
@@ -4420,7 +4582,9 @@
             elements.fileInput.click();
         });
         
-        elements.cloudBtn.addEventListener('click', fetchGithubSongs);
+        elements.uploadToCloudBtn.addEventListener('click', uploadToCloudLibrary);
+        
+        elements.cloudBtn.addEventListener('click', loadFromCloudLibrary);
 
         elements.fileInput.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
@@ -4443,7 +4607,7 @@
             }
 
             renderQueue();
-            elements.uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Music';
+            elements.uploadBtn.innerHTML = '<i class="fas fa-file-upload"></i> Upload Local Files';
             elements.uploadBtn.disabled = false;
             e.target.value = '';
             
