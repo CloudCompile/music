@@ -13,6 +13,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+    <!-- Appwrite SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@21.2.1"></script>
+    <script src="lib/appwrite.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -1312,6 +1315,33 @@
     <script>
         // App Version
         const APP_VERSION = 'v1.2.0';
+
+        // Initialize Appwrite
+        let appwriteClient = null;
+        let appwriteAccount = null;
+        let appwriteDatabases = null;
+        
+        // Initialize Appwrite when SDK is loaded
+        if (typeof initializeAppwrite === 'function') {
+            const appwrite = initializeAppwrite();
+            if (appwrite) {
+                appwriteClient = appwrite.client;
+                appwriteAccount = appwrite.account;
+                appwriteDatabases = appwrite.databases;
+                
+                // Ping Appwrite to verify connection on app load
+                appwriteClient.ping()
+                    .then(response => {
+                        console.log('✅ Appwrite connected successfully:', response);
+                        console.log('📦 CloudTunes is connected to Appwrite storage');
+                    })
+                    .catch(error => {
+                        console.error('❌ Appwrite connection failed:', error);
+                    });
+            }
+        } else {
+            console.warn('⚠️ Appwrite SDK not available - storage features will be limited');
+        }
 
         // No demo songs - start with empty queue
         const songs = [];
