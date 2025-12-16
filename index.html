@@ -655,6 +655,11 @@
                     <i class="fab fa-google text-lg"></i>
                     Sign in with Google
                 </button>
+                
+                <div class="mt-4 p-3 bg-blue-900/20 border border-blue-700 rounded-lg text-sm text-blue-300">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <strong>Appwrite Authentication:</strong> Your data is automatically synced across devices using Appwrite cloud storage and databases.
+                </div>
             </div>
 
             <!-- Register Form -->
@@ -690,6 +695,11 @@
                     <i class="fab fa-google text-lg"></i>
                     Sign up with Google
                 </button>
+                
+                <div class="mt-4 p-3 bg-blue-900/20 border border-blue-700 rounded-lg text-sm text-blue-300">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <strong>Appwrite Authentication:</strong> Your data is automatically synced across devices using Appwrite cloud storage and databases.
+                </div>
             </div>
 
             <p id="authError" class="text-red-500 text-sm mt-4 hidden"></p>
@@ -749,6 +759,24 @@
                     Install CloudTunes
                 </button>
                 <p class="text-sm text-zinc-400 mt-2">Install as a Progressive Web App for offline access</p>
+            </div>
+
+            <!-- Appwrite Cloud Storage Info -->
+            <div class="mb-6" id="storageInfoSection">
+                <h3 class="text-lg font-semibold mb-3">Cloud Storage</h3>
+                <div class="p-4 bg-zinc-800 rounded-lg">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm">Files Stored</span>
+                        <span class="font-semibold" id="storageFilesCount">-</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm">Space Used</span>
+                        <span class="font-semibold" id="storageSpaceUsed">-</span>
+                    </div>
+                    <button id="refreshStorageBtn" class="mt-3 text-sm text-green-500 hover:text-green-400 w-full text-left">
+                        <i class="fas fa-sync-alt mr-1"></i> Refresh storage info
+                    </button>
+                </div>
             </div>
 
             <!-- Version Info -->
@@ -1319,6 +1347,10 @@
     <script>
         // App Version
         const APP_VERSION = 'v1.2.0';
+        
+        // Constants
+        const DOCUMENT_NOT_FOUND = 404;
+        const MAX_HISTORY_ITEMS = 50;
 
         // Initialize Appwrite
         let appwriteClient = null;
@@ -1326,6 +1358,11 @@
         let appwriteDatabases = null;
         let appwriteStorage = null;
         let appwriteBucketId = null;
+        let appwriteDatabaseId = null;
+        let appwriteCollections = null;
+        let appwriteID = null;
+        let appwriteQuery = null;
+        let appwriteUser = null; // Current Appwrite user
         
         // Initialize Appwrite when SDK is loaded
         if (typeof initializeAppwrite === 'function') {
@@ -1336,16 +1373,23 @@
                 appwriteDatabases = appwrite.databases;
                 appwriteStorage = appwrite.storage;
                 appwriteBucketId = appwrite.bucketId;
+                appwriteDatabaseId = appwrite.databaseId;
+                appwriteCollections = appwrite.collections;
+                appwriteID = appwrite.ID;
+                appwriteQuery = appwrite.Query;
                 
                 // Ping Appwrite to verify connection on app load
                 appwriteClient.ping()
                     .then(response => {
                         console.log('✅ Appwrite connected successfully:', response);
-                        console.log('📦 CloudTunes is connected to Appwrite storage');
+                        console.log('📦 CloudTunes is connected to Appwrite storage and databases');
                     })
                     .catch(error => {
                         console.error('❌ Appwrite connection failed:', error);
                     });
+                
+                // Check for existing Appwrite session
+                checkAppwriteSession();
             }
         } else {
             console.warn('⚠️ Appwrite SDK not available - storage features will be limited');
@@ -1413,13 +1457,531 @@
                     volume: state.volume,
                     playbackSpeed: state.playbackSpeed,
                     eqPreset: state.eqPreset,
-                    history: state.history.slice(0, 50) // Keep only last 50 items
+                    history: state.history.slice(0, MAX_HISTORY_ITEMS) // Keep only last items
                 };
                 localStorage.setItem('cloudtunes_state', JSON.stringify(toSave));
+                
+                // Sync to Appwrite if logged in
+                if (appwriteUser) {
+                    syncStateToAppwrite();
+                }
             } catch (e) {
                 console.error('Failed to save state:', e);
             }
         }
+
+        // ==================== APPWRITE FEATURES ====================
+        
+        // Check for existing Appwrite session
+        async function checkAppwriteSession() {
+            if (!appwriteAccount) return;
+            
+            try {
+                const user = await appwriteAccount.get();
+                appwriteUser = user;
+                console.log('✅ Appwrite user logged in:', user.name || `User ID: ${user.$id}`);
+                
+                // Load user data from Appwrite
+                await loadStateFromAppwrite();
+            } catch (error) {
+                console.log('No active Appwrite session');
+                appwriteUser = null;
+            }
+        }
+        
+        // Appwrite Authentication Functions
+        async function appwriteLogin(email, password) {
+            if (!appwriteAccount) {
+                showToast('Appwrite not available', 'error');
+                return false;
+            }
+            
+            try {
+                await appwriteAccount.createEmailPasswordSession(email, password);
+                const user = await appwriteAccount.get();
+                appwriteUser = user;
+                showToast('Logged in with Appwrite!', 'success');
+                
+                // Load user data from Appwrite
+                await loadStateFromAppwrite();
+                return true;
+            } catch (error) {
+                console.error('Appwrite login error:', error);
+                showToast(`Login failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function appwriteRegister(email, password, name) {
+            if (!appwriteAccount || !appwriteID) {
+                showToast('Appwrite not available', 'error');
+                return false;
+            }
+            
+            try {
+                await appwriteAccount.create(appwriteID.unique(), email, password, name);
+                await appwriteAccount.createEmailPasswordSession(email, password);
+                const user = await appwriteAccount.get();
+                appwriteUser = user;
+                showToast('Registered with Appwrite!', 'success');
+                
+                // Initialize user data in Appwrite
+                await syncStateToAppwrite();
+                return true;
+            } catch (error) {
+                console.error('Appwrite registration error:', error);
+                showToast(`Registration failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function appwriteOAuthLogin(provider) {
+            if (!appwriteAccount) {
+                showToast('Appwrite not available', 'error');
+                return;
+            }
+            
+            try {
+                // Redirect to OAuth provider
+                appwriteAccount.createOAuth2Session(
+                    provider, // 'google', 'github', etc.
+                    window.location.origin, // Success redirect
+                    window.location.origin  // Failure redirect
+                );
+            } catch (error) {
+                console.error('OAuth error:', error);
+                showToast(`OAuth failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function appwriteLogout() {
+            if (!appwriteAccount) return;
+            
+            try {
+                await appwriteAccount.deleteSession('current');
+                appwriteUser = null;
+                showToast('Logged out from Appwrite', 'success');
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+        
+        // Appwrite Database Functions
+        async function syncStateToAppwrite() {
+            if (!appwriteDatabases || !appwriteUser || !appwriteCollections || !appwriteDatabaseId) return;
+            
+            try {
+                // Sync user settings
+                const settings = {
+                    userId: appwriteUser.$id,
+                    theme: state.theme,
+                    advancedMode: state.advancedMode,
+                    volume: state.volume,
+                    playbackSpeed: state.playbackSpeed,
+                    eqPreset: state.eqPreset,
+                    updatedAt: new Date().toISOString()
+                };
+                
+                try {
+                    // Try to update existing document
+                    await appwriteDatabases.updateDocument(
+                        appwriteDatabaseId,
+                        appwriteCollections.SETTINGS,
+                        appwriteUser.$id,
+                        settings
+                    );
+                } catch (updateError) {
+                    // If document doesn't exist, create it
+                    if (updateError.code === DOCUMENT_NOT_FOUND) {
+                        await appwriteDatabases.createDocument(
+                            appwriteDatabaseId,
+                            appwriteCollections.SETTINGS,
+                            appwriteUser.$id,
+                            settings
+                        );
+                    }
+                }
+                
+                console.log('✅ Synced settings to Appwrite');
+            } catch (error) {
+                console.error('Failed to sync to Appwrite:', error);
+            }
+        }
+        
+        async function loadStateFromAppwrite() {
+            if (!appwriteDatabases || !appwriteUser || !appwriteCollections || !appwriteDatabaseId) return;
+            
+            try {
+                // Load user settings
+                const settingsDoc = await appwriteDatabases.getDocument(
+                    appwriteDatabaseId,
+                    appwriteCollections.SETTINGS,
+                    appwriteUser.$id
+                );
+                
+                if (settingsDoc) {
+                    state.theme = settingsDoc.theme || state.theme;
+                    state.advancedMode = settingsDoc.advancedMode || state.advancedMode;
+                    state.volume = settingsDoc.volume || state.volume;
+                    state.playbackSpeed = settingsDoc.playbackSpeed || state.playbackSpeed;
+                    state.eqPreset = settingsDoc.eqPreset || state.eqPreset;
+                    
+                    // Apply loaded settings
+                    applyTheme(state.theme);
+                    elements.advancedMode.checked = state.advancedMode;
+                    updateVolume(state.volume);
+                    elements.volumeSlider.value = state.volume;
+                    
+                    console.log('✅ Loaded settings from Appwrite');
+                }
+                
+                // Load playlists
+                await loadPlaylistsFromAppwrite();
+                
+                // Load favorites
+                await loadFavoritesFromAppwrite();
+                
+                // Load history
+                await loadHistoryFromAppwrite();
+                
+            } catch (error) {
+                if (error.code !== DOCUMENT_NOT_FOUND) {
+                    console.error('Failed to load from Appwrite:', error);
+                }
+            }
+        }
+        
+        async function savePlaylistToAppwrite(playlist) {
+            if (!appwriteDatabases || !appwriteUser || !appwriteCollections || !appwriteDatabaseId || !appwriteID) return;
+            
+            try {
+                const playlistDoc = {
+                    userId: appwriteUser.$id,
+                    name: playlist.name,
+                    description: playlist.description || '',
+                    songs: JSON.stringify(playlist.songs),
+                    createdAt: playlist.createdAt || new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                };
+                
+                if (playlist.appwriteId) {
+                    // Update existing
+                    await appwriteDatabases.updateDocument(
+                        appwriteDatabaseId,
+                        appwriteCollections.PLAYLISTS,
+                        playlist.appwriteId,
+                        playlistDoc
+                    );
+                } else {
+                    // Create new
+                    const doc = await appwriteDatabases.createDocument(
+                        appwriteDatabaseId,
+                        appwriteCollections.PLAYLISTS,
+                        appwriteID.unique(),
+                        playlistDoc
+                    );
+                    playlist.appwriteId = doc.$id;
+                }
+                
+                console.log('✅ Saved playlist to Appwrite');
+            } catch (error) {
+                console.error('Failed to save playlist to Appwrite:', error);
+            }
+        }
+        
+        async function loadPlaylistsFromAppwrite() {
+            if (!appwriteDatabases || !appwriteUser || !appwriteCollections || !appwriteDatabaseId || !appwriteQuery) return;
+            
+            try {
+                const response = await appwriteDatabases.listDocuments(
+                    appwriteDatabaseId,
+                    appwriteCollections.PLAYLISTS,
+                    [appwriteQuery.equal('userId', appwriteUser.$id)]
+                );
+                
+                if (response.documents && response.documents.length > 0) {
+                    // Merge with existing playlists
+                    response.documents.forEach(doc => {
+                        const existingIndex = state.playlists.findIndex(p => p.appwriteId === doc.$id);
+                        const playlist = {
+                            id: doc.$id,
+                            appwriteId: doc.$id,
+                            name: doc.name,
+                            description: doc.description,
+                            songs: JSON.parse(doc.songs || '[]'),
+                            createdAt: doc.createdAt
+                        };
+                        
+                        if (existingIndex >= 0) {
+                            state.playlists[existingIndex] = playlist;
+                        } else {
+                            state.playlists.push(playlist);
+                        }
+                    });
+                    
+                    renderPlaylists();
+                    console.log(`✅ Loaded ${response.documents.length} playlists from Appwrite`);
+                }
+            } catch (error) {
+                console.error('Failed to load playlists from Appwrite:', error);
+            }
+        }
+        
+        async function deletePlaylistFromAppwrite(playlistId) {
+            if (!appwriteDatabases || !appwriteCollections || !appwriteDatabaseId) return;
+            
+            try {
+                await appwriteDatabases.deleteDocument(
+                    appwriteDatabaseId,
+                    appwriteCollections.PLAYLISTS,
+                    playlistId
+                );
+                console.log('✅ Deleted playlist from Appwrite');
+            } catch (error) {
+                console.error('Failed to delete playlist from Appwrite:', error);
+            }
+        }
+        
+        async function saveFavoritesToAppwrite() {
+            if (!appwriteDatabases || !appwriteUser || !appwriteCollections || !appwriteDatabaseId) return;
+            
+            try {
+                const favoritesDoc = {
+                    userId: appwriteUser.$id,
+                    songIds: Array.from(state.liked),
+                    updatedAt: new Date().toISOString()
+                };
+                
+                try {
+                    await appwriteDatabases.updateDocument(
+                        appwriteDatabaseId,
+                        appwriteCollections.FAVORITES,
+                        appwriteUser.$id,
+                        favoritesDoc
+                    );
+                } catch (updateError) {
+                    if (updateError.code === DOCUMENT_NOT_FOUND) {
+                        await appwriteDatabases.createDocument(
+                            appwriteDatabaseId,
+                            appwriteCollections.FAVORITES,
+                            appwriteUser.$id,
+                            favoritesDoc
+                        );
+                    }
+                }
+                
+                console.log('✅ Saved favorites to Appwrite');
+            } catch (error) {
+                console.error('Failed to save favorites to Appwrite:', error);
+            }
+        }
+        
+        async function loadFavoritesFromAppwrite() {
+            if (!appwriteDatabases || !appwriteUser || !appwriteCollections || !appwriteDatabaseId) return;
+            
+            try {
+                const doc = await appwriteDatabases.getDocument(
+                    appwriteDatabaseId,
+                    appwriteCollections.FAVORITES,
+                    appwriteUser.$id
+                );
+                
+                if (doc && doc.songIds) {
+                    state.liked = new Set(doc.songIds);
+                    console.log('✅ Loaded favorites from Appwrite');
+                }
+            } catch (error) {
+                if (error.code !== DOCUMENT_NOT_FOUND) {
+                    console.error('Failed to load favorites from Appwrite:', error);
+                }
+            }
+        }
+        
+        async function saveHistoryToAppwrite() {
+            if (!appwriteDatabases || !appwriteUser || !appwriteCollections || !appwriteDatabaseId) return;
+            
+            try {
+                const historyDoc = {
+                    userId: appwriteUser.$id,
+                    history: JSON.stringify(state.history.slice(0, MAX_HISTORY_ITEMS)),
+                    updatedAt: new Date().toISOString()
+                };
+                
+                try {
+                    await appwriteDatabases.updateDocument(
+                        appwriteDatabaseId,
+                        appwriteCollections.HISTORY,
+                        appwriteUser.$id,
+                        historyDoc
+                    );
+                } catch (updateError) {
+                    if (updateError.code === DOCUMENT_NOT_FOUND) {
+                        await appwriteDatabases.createDocument(
+                            appwriteDatabaseId,
+                            appwriteCollections.HISTORY,
+                            appwriteUser.$id,
+                            historyDoc
+                        );
+                    }
+                }
+                
+                console.log('✅ Saved history to Appwrite');
+            } catch (error) {
+                console.error('Failed to save history to Appwrite:', error);
+            }
+        }
+        
+        async function loadHistoryFromAppwrite() {
+            if (!appwriteDatabases || !appwriteUser || !appwriteCollections || !appwriteDatabaseId) return;
+            
+            try {
+                const doc = await appwriteDatabases.getDocument(
+                    appwriteDatabaseId,
+                    appwriteCollections.HISTORY,
+                    appwriteUser.$id
+                );
+                
+                if (doc && doc.history) {
+                    state.history = JSON.parse(doc.history);
+                    renderHistory();
+                    console.log('✅ Loaded history from Appwrite');
+                }
+            } catch (error) {
+                if (error.code !== DOCUMENT_NOT_FOUND) {
+                    console.error('Failed to load history from Appwrite:', error);
+                }
+            }
+        }
+        
+        // Appwrite Realtime Subscriptions
+        let realtimeUnsubscribe = null;
+        
+        function subscribeToRealtime() {
+            if (!appwriteClient || !appwriteUser || !appwriteDatabaseId || !appwriteCollections) return;
+            
+            try {
+                // Subscribe to all user's collections for real-time updates
+                realtimeUnsubscribe = appwriteClient.subscribe([
+                    `databases.${appwriteDatabaseId}.collections.${appwriteCollections.PLAYLISTS}.documents`,
+                    `databases.${appwriteDatabaseId}.collections.${appwriteCollections.FAVORITES}.documents`,
+                    `databases.${appwriteDatabaseId}.collections.${appwriteCollections.SETTINGS}.documents`
+                ], (response) => {
+                    console.log('Realtime update:', response);
+                    
+                    // Handle different events
+                    const collectionId = response.channels[0].split('.')[3];
+                    
+                    if (collectionId === appwriteCollections.PLAYLISTS) {
+                        // Reload playlists on any change
+                        if (response.payload.userId === appwriteUser.$id) {
+                            loadPlaylistsFromAppwrite();
+                        }
+                    } else if (collectionId === appwriteCollections.FAVORITES) {
+                        // Reload favorites
+                        if (response.payload.userId === appwriteUser.$id) {
+                            loadFavoritesFromAppwrite();
+                        }
+                    } else if (collectionId === appwriteCollections.SETTINGS) {
+                        // Reload settings
+                        if (response.payload.userId === appwriteUser.$id) {
+                            loadStateFromAppwrite();
+                        }
+                    }
+                });
+                
+                console.log('✅ Subscribed to Appwrite Realtime updates');
+            } catch (error) {
+                console.error('Failed to subscribe to realtime:', error);
+            }
+        }
+        
+        function unsubscribeFromRealtime() {
+            if (realtimeUnsubscribe) {
+                realtimeUnsubscribe();
+                realtimeUnsubscribe = null;
+                console.log('✅ Unsubscribed from Appwrite Realtime');
+            }
+        }
+        
+        // Enhanced Storage Features
+        async function getStorageUsage() {
+            if (!appwriteStorage || !appwriteBucketId) return null;
+            
+            try {
+                const bucket = await appwriteStorage.getBucket(appwriteBucketId);
+                return {
+                    filesCount: bucket.filesTotal || 0,
+                    bytesUsed: bucket.fileSizeTotal || 0,
+                    maxFileSize: bucket.maximumFileSize || 0
+                };
+            } catch (error) {
+                console.error('Failed to get storage usage:', error);
+                return null;
+            }
+        }
+        
+        async function deleteCloudFile(fileId) {
+            if (!appwriteStorage || !appwriteBucketId) return false;
+            
+            try {
+                await appwriteStorage.deleteFile(appwriteBucketId, fileId);
+                showToast('File deleted from cloud', 'success');
+                return true;
+            } catch (error) {
+                console.error('Failed to delete file:', error);
+                showToast('Failed to delete file from cloud', 'error');
+                return false;
+            }
+        }
+        
+        async function getFileMetadata(fileId) {
+            if (!appwriteStorage || !appwriteBucketId) return null;
+            
+            try {
+                const file = await appwriteStorage.getFile(appwriteBucketId, fileId);
+                return {
+                    id: file.$id,
+                    name: file.name,
+                    size: file.sizeOriginal,
+                    mimeType: file.mimeType,
+                    createdAt: file.$createdAt,
+                    updatedAt: file.$updatedAt
+                };
+            } catch (error) {
+                console.error('Failed to get file metadata:', error);
+                return null;
+            }
+        }
+        
+        // User Avatar Management
+        async function uploadAvatar(file) {
+            if (!appwriteStorage || !appwriteID) return null;
+            
+            try {
+                // Create a special bucket for avatars or use the main bucket
+                const avatarId = `avatar-${appwriteUser.$id}`;
+                
+                // Delete old avatar if exists
+                try {
+                    await appwriteStorage.deleteFile(appwriteBucketId, avatarId);
+                } catch (e) {
+                    // Ignore if doesn't exist
+                }
+                
+                // Upload new avatar
+                const result = await appwriteStorage.createFile(appwriteBucketId, avatarId, file);
+                const avatarUrl = getFileViewUrl(avatarId);
+                
+                showToast('Avatar uploaded!', 'success');
+                return avatarUrl;
+            } catch (error) {
+                console.error('Failed to upload avatar:', error);
+                showToast('Failed to upload avatar', 'error');
+                return null;
+            }
+        }
+        
+        // ==================== END APPWRITE FEATURES ====================
 
         // DOM Elements
         const elements = {
@@ -1551,7 +2113,11 @@
             speedMenu: document.getElementById('speedMenu'),
             speedDisplay: document.getElementById('speedDisplay'),
             eqBtn: document.getElementById('eqBtn'),
-            eqMenu: document.getElementById('eqMenu')
+            eqMenu: document.getElementById('eqMenu'),
+            // Appwrite storage elements
+            storageFilesCount: document.getElementById('storageFilesCount'),
+            storageSpaceUsed: document.getElementById('storageSpaceUsed'),
+            refreshStorageBtn: document.getElementById('refreshStorageBtn')
         };
 
         let nextSongId = songs.length + 1;
@@ -1825,10 +2391,15 @@
             });
             
             // Keep only last 50 items
-            state.history = state.history.slice(0, 50);
+            state.history = state.history.slice(0, MAX_HISTORY_ITEMS);
             
             saveState();
             renderHistory();
+            
+            // Sync to Appwrite
+            if (appwriteUser) {
+                saveHistoryToAppwrite();
+            }
         }
         
         function renderHistory() {
@@ -2507,12 +3078,18 @@
             elements.playlistModal.classList.remove('hidden');
         }
 
-        function deletePlaylist(id) {
+        async function deletePlaylist(id) {
             if (confirm('Delete this playlist?')) {
+                const playlist = state.playlists.find(p => p.id === id);
                 state.playlists = state.playlists.filter(p => p.id !== id);
                 saveState();
                 renderPlaylists();
                 showToast('Playlist deleted', 'success');
+                
+                // Delete from Appwrite
+                if (appwriteUser && playlist && playlist.appwriteId) {
+                    await deletePlaylistFromAppwrite(playlist.appwriteId);
+                }
             }
         }
 
@@ -3396,6 +3973,12 @@
             }
             
             saveState();
+            
+            // Sync to Appwrite
+            if (appwriteUser) {
+                saveFavoritesToAppwrite();
+            }
+        }
         }
 
         // Sidebar collapse
@@ -3626,9 +4209,25 @@
             const password = elements.loginPassword.value;
             
             try {
-                await window.firebaseAuth.signInWithEmailAndPassword(email, password);
-                hideAuthModal();
-                showToast('Signed in successfully', 'success');
+                // Try Appwrite login first
+                const appwriteSuccess = await appwriteLogin(email, password);
+                
+                if (appwriteSuccess) {
+                    // Also try Firebase for compatibility
+                    try {
+                        await window.firebaseAuth.signInWithEmailAndPassword(email, password);
+                    } catch (fbError) {
+                        console.log('Firebase login failed, using Appwrite only');
+                    }
+                    
+                    hideAuthModal();
+                    subscribeToRealtime(); // Enable real-time sync
+                } else {
+                    // Fallback to Firebase only
+                    await window.firebaseAuth.signInWithEmailAndPassword(email, password);
+                    hideAuthModal();
+                    showToast('Signed in successfully', 'success');
+                }
             } catch (error) {
                 showAuthError(error.message);
             }
@@ -3642,10 +4241,27 @@
             const password = elements.registerPassword.value;
             
             try {
-                const result = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
-                await window.firebaseAuth.updateProfile(result.user, { displayName: name });
-                hideAuthModal();
-                showToast('Account created successfully', 'success');
+                // Try Appwrite registration first
+                const appwriteSuccess = await appwriteRegister(email, password, name);
+                
+                if (appwriteSuccess) {
+                    // Also try Firebase for compatibility
+                    try {
+                        const result = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
+                        await window.firebaseAuth.updateProfile(result.user, { displayName: name });
+                    } catch (fbError) {
+                        console.log('Firebase registration failed, using Appwrite only');
+                    }
+                    
+                    hideAuthModal();
+                    subscribeToRealtime(); // Enable real-time sync
+                } else {
+                    // Fallback to Firebase only
+                    const result = await window.firebaseAuth.createUserWithEmailAndPassword(email, password);
+                    await window.firebaseAuth.updateProfile(result.user, { displayName: name });
+                    hideAuthModal();
+                    showToast('Account created successfully', 'success');
+                }
             } catch (error) {
                 showAuthError(error.message);
             }
@@ -3675,7 +4291,16 @@
         // Logout
         elements.logoutBtn.addEventListener('click', async () => {
             try {
-                await window.firebaseAuth.signOut();
+                // Logout from both Appwrite and Firebase
+                await appwriteLogout();
+                unsubscribeFromRealtime();
+                
+                try {
+                    await window.firebaseAuth.signOut();
+                } catch (fbError) {
+                    console.log('Firebase logout failed');
+                }
+                
                 showToast('Signed out', 'success');
             } catch (error) {
                 showToast('Error signing out', 'error');
@@ -3683,8 +4308,18 @@
         });
 
         // Settings
-        elements.settingsBtn.addEventListener('click', () => {
+        elements.settingsBtn.addEventListener('click', async () => {
             elements.settingsModal.classList.remove('hidden');
+            
+            // Auto-load storage info when settings modal opens
+            if (elements.storageFilesCount) {
+                const usage = await getStorageUsage();
+                if (usage) {
+                    elements.storageFilesCount.textContent = usage.filesCount;
+                    const mbUsed = (usage.bytesUsed / 1024 / 1024).toFixed(2);
+                    elements.storageSpaceUsed.textContent = `${mbUsed} MB`;
+                }
+            }
         });
 
         elements.closeSettings.addEventListener('click', () => {
@@ -3732,6 +4367,21 @@
         elements.checkUpdatesBtn.addEventListener('click', () => {
             showToast('You are using the latest version', 'success');
         });
+        
+        // Storage info refresh
+        if (elements.refreshStorageBtn) {
+            elements.refreshStorageBtn.addEventListener('click', async () => {
+                const usage = await getStorageUsage();
+                if (usage) {
+                    elements.storageFilesCount.textContent = usage.filesCount;
+                    const mbUsed = (usage.bytesUsed / 1024 / 1024).toFixed(2);
+                    elements.storageSpaceUsed.textContent = `${mbUsed} MB`;
+                    showToast('Storage info updated', 'success');
+                } else {
+                    showToast('Could not fetch storage info', 'error');
+                }
+            });
+        }
 
         // Changelog
         elements.viewChangelogBtn.addEventListener('click', () => {
@@ -3750,7 +4400,7 @@
             elements.playlistModal.classList.add('hidden');
         });
 
-        elements.playlistForm.addEventListener('submit', (e) => {
+        elements.playlistForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const name = elements.playlistName.value.trim();
@@ -3759,9 +4409,10 @@
             
             if (!name) return;
             
+            let playlist;
             if (editId) {
                 // Update existing playlist
-                const playlist = state.playlists.find(p => p.id === editId);
+                playlist = state.playlists.find(p => p.id === editId);
                 if (playlist) {
                     playlist.name = name;
                     playlist.description = description;
@@ -3776,12 +4427,18 @@
                     createdAt: new Date().toISOString()
                 };
                 state.playlists.push(newPlaylist);
+                playlist = newPlaylist;
             }
             
             saveState();
             renderPlaylists();
             elements.playlistModal.classList.add('hidden');
             showToast(editId ? 'Playlist updated' : 'Playlist created', 'success');
+            
+            // Sync to Appwrite
+            if (appwriteUser && playlist) {
+                await savePlaylistToAppwrite(playlist);
+            }
         });
 
         // Metadata editor
