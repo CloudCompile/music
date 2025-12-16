@@ -1347,6 +1347,10 @@
     <script>
         // App Version
         const APP_VERSION = 'v1.2.0';
+        
+        // Constants
+        const DOCUMENT_NOT_FOUND = 404;
+        const MAX_HISTORY_ITEMS = 50;
 
         // Initialize Appwrite
         let appwriteClient = null;
@@ -1453,7 +1457,7 @@
                     volume: state.volume,
                     playbackSpeed: state.playbackSpeed,
                     eqPreset: state.eqPreset,
-                    history: state.history.slice(0, 50) // Keep only last 50 items
+                    history: state.history.slice(0, MAX_HISTORY_ITEMS) // Keep only last items
                 };
                 localStorage.setItem('cloudtunes_state', JSON.stringify(toSave));
                 
@@ -1475,7 +1479,7 @@
             try {
                 const user = await appwriteAccount.get();
                 appwriteUser = user;
-                console.log('✅ Appwrite user logged in:', user.name || user.email);
+                console.log('✅ Appwrite user logged in:', user.name || `User ID: ${user.$id}`);
                 
                 // Load user data from Appwrite
                 await loadStateFromAppwrite();
@@ -1588,7 +1592,7 @@
                     );
                 } catch (updateError) {
                     // If document doesn't exist, create it
-                    if (updateError.code === 404) {
+                    if (updateError.code === DOCUMENT_NOT_FOUND) {
                         await appwriteDatabases.createDocument(
                             appwriteDatabaseId,
                             appwriteCollections.SETTINGS,
@@ -1641,7 +1645,7 @@
                 await loadHistoryFromAppwrite();
                 
             } catch (error) {
-                if (error.code !== 404) {
+                if (error.code !== DOCUMENT_NOT_FOUND) {
                     console.error('Failed to load from Appwrite:', error);
                 }
             }
@@ -1756,7 +1760,7 @@
                         favoritesDoc
                     );
                 } catch (updateError) {
-                    if (updateError.code === 404) {
+                    if (updateError.code === DOCUMENT_NOT_FOUND) {
                         await appwriteDatabases.createDocument(
                             appwriteDatabaseId,
                             appwriteCollections.FAVORITES,
@@ -1787,7 +1791,7 @@
                     console.log('✅ Loaded favorites from Appwrite');
                 }
             } catch (error) {
-                if (error.code !== 404) {
+                if (error.code !== DOCUMENT_NOT_FOUND) {
                     console.error('Failed to load favorites from Appwrite:', error);
                 }
             }
@@ -1799,7 +1803,7 @@
             try {
                 const historyDoc = {
                     userId: appwriteUser.$id,
-                    history: JSON.stringify(state.history.slice(0, 50)),
+                    history: JSON.stringify(state.history.slice(0, MAX_HISTORY_ITEMS)),
                     updatedAt: new Date().toISOString()
                 };
                 
@@ -1811,7 +1815,7 @@
                         historyDoc
                     );
                 } catch (updateError) {
-                    if (updateError.code === 404) {
+                    if (updateError.code === DOCUMENT_NOT_FOUND) {
                         await appwriteDatabases.createDocument(
                             appwriteDatabaseId,
                             appwriteCollections.HISTORY,
@@ -1843,7 +1847,7 @@
                     console.log('✅ Loaded history from Appwrite');
                 }
             } catch (error) {
-                if (error.code !== 404) {
+                if (error.code !== DOCUMENT_NOT_FOUND) {
                     console.error('Failed to load history from Appwrite:', error);
                 }
             }
@@ -2387,7 +2391,7 @@
             });
             
             // Keep only last 50 items
-            state.history = state.history.slice(0, 50);
+            state.history = state.history.slice(0, MAX_HISTORY_ITEMS);
             
             saveState();
             renderHistory();
@@ -4304,8 +4308,18 @@
         });
 
         // Settings
-        elements.settingsBtn.addEventListener('click', () => {
+        elements.settingsBtn.addEventListener('click', async () => {
             elements.settingsModal.classList.remove('hidden');
+            
+            // Auto-load storage info when settings modal opens
+            if (elements.storageFilesCount) {
+                const usage = await getStorageUsage();
+                if (usage) {
+                    elements.storageFilesCount.textContent = usage.filesCount;
+                    const mbUsed = (usage.bytesUsed / 1024 / 1024).toFixed(2);
+                    elements.storageSpaceUsed.textContent = `${mbUsed} MB`;
+                }
+            }
         });
 
         elements.closeSettings.addEventListener('click', () => {
@@ -4365,16 +4379,6 @@
                     showToast('Storage info updated', 'success');
                 } else {
                     showToast('Could not fetch storage info', 'error');
-                }
-            });
-            
-            // Auto-load storage info when settings modal opens
-            elements.settingsBtn.addEventListener('click', async () => {
-                const usage = await getStorageUsage();
-                if (usage && elements.storageFilesCount) {
-                    elements.storageFilesCount.textContent = usage.filesCount;
-                    const mbUsed = (usage.bytesUsed / 1024 / 1024).toFixed(2);
-                    elements.storageSpaceUsed.textContent = `${mbUsed} MB`;
                 }
             });
         }
