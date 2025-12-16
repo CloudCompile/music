@@ -1560,6 +1560,39 @@
         let lastPipUpdate = 0; // Throttle browser PiP updates
         const PIP_UPDATE_INTERVAL = 250; // Update PiP at most every 250ms
 
+        // Helper Functions
+        const SUPPORTED_AUDIO_EXTENSIONS = /\.(mp3|flac|wav|ogg|m4a)$/i;
+        const SUPPORTED_VIDEO_EXTENSIONS = /\.mp4$/i;
+        const SUPPORTED_MEDIA_EXTENSIONS = /\.(mp3|flac|wav|ogg|m4a|mp4|mov|webm|avi)$/i;
+        
+        function isValidMediaFile(file) {
+            return file.type.startsWith('audio/') || 
+                   file.type.startsWith('video/') || 
+                   file.name.match(SUPPORTED_MEDIA_EXTENSIONS);
+        }
+        
+        function cleanFileName(fileName) {
+            return fileName
+                .replace(/\.(mp3|flac|mp4|wav|ogg|m4a)$/i, '')
+                .replace(/_/g, ' ')
+                .replace(/^\d+_/, '');
+        }
+        
+        function getFileViewUrl(fileId) {
+            if (!appwriteStorage || !appwriteBucketId) return null;
+            return `${appwriteStorage.client.config.endpoint}/storage/buckets/${appwriteBucketId}/files/${fileId}/view?project=${appwriteStorage.client.config.project}`;
+        }
+        
+        function generateUniqueFileId(fileName) {
+            // Generate a unique ID using crypto API if available, otherwise fallback to timestamp + random
+            const timestamp = Date.now();
+            const random = crypto && crypto.randomUUID ? 
+                crypto.randomUUID().split('-')[0] : 
+                Math.random().toString(36).substring(2, 10);
+            const sanitizedName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+            return `${timestamp}_${random}_${sanitizedName}`;
+        }
+
         // Toast notification
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
@@ -4369,11 +4402,10 @@
 
                 for (const file of files) {
                     // Check for audio/video type or extension
-                    if (file.type.startsWith('audio/') || file.type.startsWith('video/') || 
-                        file.name.match(/\.(mp3|flac|wav|ogg|m4a|mp4|mov|webm|avi)$/i)) {
+                    if (isValidMediaFile(file)) {
                         try {
                             // Upload file to Appwrite bucket with unique ID
-                            const fileId = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                            const fileId = generateUniqueFileId(file.name);
                             showToast(`Uploading ${file.name}...`, 'info');
                             
                             const uploadedFile = await appwriteStorage.createFile(
@@ -4435,17 +4467,17 @@
                 
                 for (const file of filesList.files) {
                     // Check if already in queue to avoid duplicates
-                    const fileUrl = `${appwriteStorage.client.config.endpoint}/storage/buckets/${appwriteBucketId}/files/${file.$id}/view?project=${appwriteStorage.client.config.project}`;
+                    const fileUrl = getFileViewUrl(file.$id);
                     const exists = state.queue.some(s => s.cloudFileId === file.$id || s.audioUrl === fileUrl);
                     if (exists) continue;
 
                     const { color, gradient } = generateRandomGradient();
                     const fileName = file.name || file.$id;
-                    const isVideo = fileName.match(/\.mp4$/i);
+                    const isVideo = fileName.match(SUPPORTED_VIDEO_EXTENSIONS);
                     
                     const song = {
                         id: nextSongId++,
-                        title: fileName.replace(/\.(mp3|flac|mp4|wav|ogg|m4a)$/i, '').replace(/_/g, ' ').replace(/^\d+_/, ''),
+                        title: cleanFileName(fileName),
                         artist: 'Cloud Library',
                         album: '',
                         genre: '',
@@ -4496,88 +4528,6 @@
             }
         }
 
-        async function fetchGithubSongs() {
-            elements.cloudBtn.disabled = true;
-            elements.cloudBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
-            
-            try {
-                // Fetch contents from the repository
-                const response = await fetch('https://api.github.com/repos/cloudcompile/music/contents/');
-                if (!response.ok) throw new Error('Failed to connect to Cloud Library');
-                
-                const data = await response.json();
-                // Filter for audio/video files
-                const mediaFiles = data.filter(item => item.name.match(/\.(mp3|flac|mp4)$/i));
-                
-                if (mediaFiles.length === 0) {
-                    showToast('No music files found in Cloud Library', 'info');
-                    return;
-                }
-                
-                let addedCount = 0;
-                const songsToAdd = [];
-                
-                for (const file of mediaFiles) {
-                    // Check if already in queue to avoid duplicates
-                    const exists = state.queue.some(s => s.title === file.name.replace(/\.(mp3|flac|mp4)$/i, '').replace(/_/g, ' ') || 
-                                                        s.audioUrl === file.download_url);
-                    if (exists) continue;
-
-                    const { color, gradient } = generateRandomGradient();
-                    const isVideo = file.name.match(/\.mp4$/i);
-                    
-                    const song = {
-                        id: nextSongId++,
-                        title: file.name.replace(/\.(mp3|flac|mp4)$/i, '').replace(/_/g, ' '),
-                        artist: 'Cloud Library',
-                        album: '',
-                        genre: '',
-                        duration: 0,
-                        color,
-                        gradient,
-                        audioUrl: file.download_url,
-                        albumArtUrl: null,
-                        isVideo: !!isVideo
-                    };
-                    
-                    songsToAdd.push(song);
-                    addedCount++;
-                }
-                
-                if (addedCount > 0) {
-                    // Add songs to queue first
-                    state.queue.push(...songsToAdd);
-                    renderQueue();
-                    showToast(`Added ${addedCount} songs. Loading metadata...`, 'success');
-                    
-                    // Fetch metadata for each song in background
-                    for (const song of songsToAdd) {
-                        fetchRemoteMetadata(song).then((updatedSong) => {
-                            // Re-render queue to show updated metadata
-                            renderQueue();
-                            // Update PiP if visible and this is the current song
-                            if (state.isPipVisible && state.queue[state.currentIndex]?.id === updatedSong.id) {
-                                updatePipPlayer();
-                            }
-                            // Update now playing if this is the current song
-                            if (state.queue[state.currentIndex]?.id === updatedSong.id) {
-                                updateNowPlaying();
-                            }
-                        });
-                    }
-                } else {
-                    showToast('All songs from Cloud Library are already in queue', 'info');
-                }
-                
-            } catch (error) {
-                console.error('Cloud load error:', error);
-                showToast('Could not load Cloud Library', 'error');
-            } finally {
-                elements.cloudBtn.disabled = false;
-                elements.cloudBtn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> Load Cloud Library';
-            }
-        }
-
         elements.uploadBtn.addEventListener('click', () => {
             elements.fileInput.click();
         });
@@ -4595,8 +4545,7 @@
 
             for (const file of files) {
                 // Check for audio/video type or extension
-                if (file.type.startsWith('audio/') || file.type.startsWith('video/') || 
-                    file.name.match(/\.(mp3|flac|wav|ogg|m4a|mp4|mov|webm|avi)$/i)) {
+                if (isValidMediaFile(file)) {
                     try {
                         const song = await parseAudioFile(file);
                         state.queue.push(song);
